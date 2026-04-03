@@ -1,0 +1,63 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# stack.yml — Docker Swarm / Portainer production deployment
+# MonitorAvaliabilityWeb
+# Created by Agencia Redlab | Developed by Juan Camilo Medina Godoy
+# ──────────────────────────────────────────────────────────────────────────────
+version: '3.8'
+
+services:
+
+  app:
+    image: ${REGISTRY_IMAGE:-uptime-monitor:latest}
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PORT:         ${PORT:-3000}
+      SMTP_HOST:    ${SMTP_HOST:-}
+      SMTP_PORT:    ${SMTP_PORT:-587}
+      SMTP_USER:    ${SMTP_USER:-}
+      SMTP_PASS:    ${SMTP_PASS:-}
+      ALERT_EMAIL:  ${ALERT_EMAIL:-}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+    networks:
+      - traefik-public
+      - monitor-internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.uptime.rule=Host(`${DOMAIN:-monitor.example.com}`)"
+        - "traefik.http.routers.uptime.entrypoints=websecure"
+        - "traefik.http.routers.uptime.tls.certresolver=letsencrypt"
+        - "traefik.http.services.uptime.loadbalancer.server.port=3000"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-monitor_db}
+      POSTGRES_USER:     ${POSTGRES_USER:-monitor_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monitor_pass}
+    volumes:
+      - monitor_postgres:/var/lib/postgresql/data
+    networks:
+      - monitor-internal
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+volumes:
+  monitor_postgres:
+
+networks:
+  traefik-public:
+    external: true
+  monitor-internal:
+    driver: overlay

@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<!--
+  index.html — Dashboard UI
+  MonitorAvaliabilityWeb — Uptime Monitoring System
+
+  Created by Agencia Redlab
+  Developed by Juan Camilo Medina Godoy
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MonitorAvaliabilityWeb — Uptime Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── CSS variables (theme) ─────────────────────────────────────────── */
+    :root {
+      --bg:           #0f1117;
+      --surface:      #1a1d27;
+      --surface-alt:  #222536;
+      --border:       #2e3148;
+      --text:         #e2e8f0;
+      --text-muted:   #94a3b8;
+      --accent:       #6366f1;
+      --accent-hover: #818cf8;
+      --up:           #22c55e;
+      --down:         #ef4444;
+      --up-bg:        rgba(34,197,94,0.12);
+      --down-bg:      rgba(239,68,68,0.12);
+      --radius:       12px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    /* ── Reset & base ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+
+    /* ── Layout ────────────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    header h1 span { color: var(--accent); }
+
+    .header-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    /* ── Stats bar ─────────────────────────────────────────────────────── */
+    #stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      text-align: center;
+    }
+
+    .stat-card .val {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-card .lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-card.up   .val { color: var(--up); }
+    .stat-card.down .val { color: var(--down); }
+    .stat-card.avg  .val { color: var(--accent); }
+    .stat-card.total .val { color: var(--text); }
+
+    /* ── Add monitor form ──────────────────────────────────────────────── */
+    #add-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+
+    #add-form h2 {
+      width: 100%;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.25rem;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .field label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .field input {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .field input:focus { border-color: var(--accent); }
+
+    button {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:hover  { background: var(--accent-hover); }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #form-msg {
+      width: 100%;
+      font-size: 0.82rem;
+      min-height: 1.2em;
+    }
+
+    #form-msg.ok  { color: var(--up); }
+    #form-msg.err { color: var(--down); }
+
+    /* ── Monitor cards grid ────────────────────────────────────────────── */
+    #monitors-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .monitor-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+
+    .monitor-card:hover {
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+    }
+
+    .monitor-card.status-up   { border-left: 4px solid var(--up); }
+    .monitor-card.status-down { border-left: 4px solid var(--down); }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .badge {
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.7rem;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-up   { background: var(--up-bg);   color: var(--up); }
+    .badge-down { background: var(--down-bg); color: var(--down); }
+    .badge-unknown { background: rgba(148,163,184,0.12); color: var(--text-muted); }
+
+    .card-url {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      word-break: break-all;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .card-meta strong { color: var(--text); }
+
+    .card-delete {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.72rem;
+      padding: 0.15rem 0.5rem;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .card-delete:hover {
+      border-color: var(--down);
+      color: var(--down);
+      background: transparent;
+    }
+
+    /* ── Chart modal ───────────────────────────────────────────────────── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      max-width: 860px;
+      width: 100%;
+      padding: 1.5rem;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    #modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    #modal-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+
+    #modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0.3rem 0.65rem;
+    }
+
+    #chart-container { position: relative; height: 320px; }
+
+    #modal-loading {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 3rem 0;
+    }
+
+    /* ── Empty / loading states ────────────────────────────────────────── */
+    .grid-message {
+      grid-column: 1 / -1;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 3rem 0;
+    }
+
+    /* ── Last updated indicator ────────────────────────────────────────── */
+    #last-updated {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 3rem;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 0.75rem 1rem; }
+      main   { padding: 1rem; }
+      #add-form { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Monitor<span>Avaliability</span>Web</h1>
+  <div class="header-meta">
+    Created by <strong>Agencia Redlab</strong><br>
+    Developed by <strong>Juan Camilo Medina Godoy</strong>
+  </div>
+</header>
+
+<main>
+
+  <!-- Stats bar -->
+  <div id="stats-bar">
+    <div class="stat-card total">
+      <div class="val" id="stat-total">—</div>
+      <div class="lbl">Monitors</div>
+    </div>
+    <div class="stat-card up">
+      <div class="val" id="stat-up">—</div>
+      <div class="lbl">Up</div>
+    </div>
+    <div class="stat-card down">
+      <div class="val" id="stat-down">—</div>
+      <div class="lbl">Down</div>
+    </div>
+    <div class="stat-card avg">
+      <div class="val" id="stat-avg">—</div>
+      <div class="lbl">Avg Latency</div>
+    </div>
+  </div>
+
+  <!-- Add monitor form -->
+  <form id="add-form" autocomplete="off">
+    <h2>Add Monitor</h2>
+    <div class="field">
+      <label for="inp-name">Name</label>
+      <input id="inp-name" type="text" placeholder="My Service" required />
+    </div>
+    <div class="field">
+      <label for="inp-url">URL</label>
+      <input id="inp-url" type="url" placeholder="https://example.com" required />
+    </div>
+    <button type="submit" id="btn-add">Add Monitor</button>
+    <div id="form-msg"></div>
+  </form>
+
+  <!-- Last updated -->
+  <div id="last-updated"></div>
+
+  <!-- Monitor cards -->
+  <div id="monitors-grid">
+    <div class="grid-message">Loading monitors…</div>
+  </div>
+
+</main>
+
+<!-- Chart modal -->
+<div id="modal-overlay" role="dialog" aria-modal="true">
+  <div id="modal">
+    <button id="modal-close" aria-label="Close">✕</button>
+    <div id="modal-title">Monitor History</div>
+    <div id="modal-subtitle"></div>
+    <div id="modal-loading" style="display:none">Loading history…</div>
+    <div id="chart-container">
+      <canvas id="history-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<footer>
+  MonitorAvaliabilityWeb &mdash; Created by <strong>Agencia Redlab</strong> &mdash;
+  Developed by <strong>Juan Camilo Medina Godoy</strong>
+</footer>
+
+<script>
+  'use strict';
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let chartInstance = null;
+  let refreshTimer  = null;
+
+  // ── Utilities ────────────────────────────────────────────────────────────
+  function fmt(val, unit = '') {
+    return val != null ? `${val}${unit}` : '—';
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function uptimePct(history) {
+    if (!history || history.length === 0) return null;
+    const up = history.filter(c => c.status === 'up').length;
+    return Math.round((up / history.length) * 1000) / 10; // one decimal
+  }
+
+  // ── Stats bar ────────────────────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const res = await fetch('/api/stats');
+      if (!res.ok) return;
+      const s = await res.json();
+      document.getElementById('stat-total').textContent = s.total ?? '—';
+      document.getElementById('stat-up').textContent    = s.up    ?? '—';
+      document.getElementById('stat-down').textContent  = s.down  ?? '—';
+      document.getElementById('stat-avg').textContent   =
+        s.avg_latency != null ? `${s.avg_latency}ms` : '—';
+    } catch (_) { /* silent — network issue */ }
+  }
+
+  // ── Monitor cards ────────────────────────────────────────────────────────
+  async function loadMonitors() {
+    const grid = document.getElementById('monitors-grid');
+    try {
+      const res = await fetch('/api/monitors');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const monitors = await res.json();
+
+      document.getElementById('last-updated').textContent =
+        `Last updated: ${new Date().toLocaleTimeString()}`;
+
+      if (monitors.length === 0) {
+        grid.innerHTML = '<div class="grid-message">No monitors configured. Add one above.</div>';
+        return;
+      }
+
+      // Fetch histories in parallel to compute uptime %
+      const histories = await Promise.all(
+        monitors.map(m =>
+          fetch(`/api/monitors/${m.id}/history`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => [])
+        )
+      );
+
+      grid.innerHTML = '';
+      monitors.forEach((m, i) => {
+        const history  = histories[i] || [];
+        const pct      = uptimePct(history);
+        const status   = m.current_status || 'unknown';
+        const card     = document.createElement('div');
+
+        card.className = `monitor-card status-${status}`;
+        card.dataset.id   = m.id;
+        card.dataset.name = m.name;
+        card.dataset.url  = m.url;
+
+        card.innerHTML = `
+          <button class="card-delete" data-id="${m.id}" title="Remove monitor">✕</button>
+          <div class="card-header">
+            <div class="card-name">${escHtml(m.name)}</div>
+            <div class="badge badge-${status}">
+              ${status === 'up' ? '● UP' : status === 'down' ? '● DOWN' : '● UNKNOWN'}
+            </div>
+          </div>
+          <div class="card-url">${escHtml(m.url)}</div>
+          <div class="card-meta">
+            <span>Latency: <strong>${fmt(m.last_latency, 'ms')}</strong></span>
+            <span>Uptime (24h): <strong>${pct !== null ? pct + '%' : '—'}</strong></span>
+            <span>Checks: <strong>${history.length}</strong></span>
+          </div>
+        `;
+
+        // Click card → open chart (but not the delete button)
+        card.addEventListener('click', (e) => {
+          if (e.target.classList.contains('card-delete')) return;
+          openChart(m.id, m.name, m.url);
+        });
+
+        // Delete button
+        card.querySelector('.card-delete').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm(`Remove monitor "${m.name}"?`)) return;
+          await deleteMonitor(m.id);
+        });
+
+        grid.appendChild(card);
+      });
+    } catch (err) {
+      grid.innerHTML = `<div class="grid-message">Failed to load monitors: ${err.message}</div>`;
+    }
+  }
+
+  async function deleteMonitor(id) {
+    try {
+      const res = await fetch(`/api/monitors/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body.error || 'Failed to delete monitor');
+        return;
+      }
+      await refresh();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  // ── Add monitor form ─────────────────────────────────────────────────────
+  document.getElementById('add-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msgEl  = document.getElementById('form-msg');
+    const btn    = document.getElementById('btn-add');
+    const name   = document.getElementById('inp-name').value.trim();
+    const url    = document.getElementById('inp-url').value.trim();
+
+    msgEl.textContent = '';
+    msgEl.className   = '';
+    btn.disabled      = true;
+
+    try {
+      const res = await fetch('/api/monitors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        msgEl.textContent = body.error || 'Failed to add monitor';
+        msgEl.className   = 'err';
+        return;
+      }
+      msgEl.textContent = `Monitor "${body.name}" added successfully!`;
+      msgEl.className   = 'ok';
+      document.getElementById('inp-name').value = '';
+      document.getElementById('inp-url').value  = '';
+      await refresh();
+    } catch (err) {
+      msgEl.textContent = `Error: ${err.message}`;
+      msgEl.className   = 'err';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ── Chart modal ──────────────────────────────────────────────────────────
+  async function openChart(monitorId, name, url) {
+    const overlay    = document.getElementById('modal-overlay');
+    const titleEl    = document.getElementById('modal-title');
+    const subtitleEl = document.getElementById('modal-subtitle');
+    const loadingEl  = document.getElementById('modal-loading');
+    const chartCont  = document.getElementById('chart-container');
+
+    titleEl.textContent    = name;
+    subtitleEl.textContent = url;
+    loadingEl.style.display = 'block';
+    chartCont.style.display = 'none';
+    overlay.classList.add('open');
+
+    // Destroy previous chart
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+
+    try {
+      const res = await fetch(`/api/monitors/${monitorId}/history`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const history = await res.json();
+
+      loadingEl.style.display  = 'none';
+      chartCont.style.display  = 'block';
+
+      if (history.length === 0) {
+        loadingEl.textContent    = 'No history data available yet.';
+        loadingEl.style.display  = 'block';
+        chartCont.style.display  = 'none';
+        return;
+      }
+
+      renderChart(history);
+    } catch (err) {
+      loadingEl.textContent   = `Failed to load history: ${err.message}`;
+      loadingEl.style.display = 'block';
+      chartCont.style.display = 'none';
+    }
+  }
+
+  function renderChart(history) {
+    const labels   = history.map(c => fmtDate(c.checked_at));
+    const latency  = history.map(c => c.latency_ms);
+
+    // Build annotation zones where status == 'down'
+    const downZones = [];
+    let zoneStart = null;
+    history.forEach((c, i) => {
+      if (c.status === 'down' && zoneStart === null) {
+        zoneStart = i;
+      } else if (c.status !== 'down' && zoneStart !== null) {
+        downZones.push({ from: zoneStart, to: i - 1 });
+        zoneStart = null;
+      }
+    });
+    if (zoneStart !== null) downZones.push({ from: zoneStart, to: history.length - 1 });
+
+    const ctx = document.getElementById('history-chart').getContext('2d');
+
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Latency (ms)',
+          data: latency,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.15)',
+          borderWidth: 2,
+          pointRadius: history.length > 100 ? 0 : 3,
+          pointHoverRadius: 5,
+          fill: true,
+          tension: 0.35,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel(ctx2) {
+                const idx = ctx2.dataIndex;
+                const s   = history[idx];
+                return `Status: ${s.status.toUpperCase()}  |  HTTP ${s.status_code ?? 'N/A'}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#94a3b8',
+              maxTicksLimit: 10,
+              maxRotation: 30,
+            },
+            grid: { color: '#2e3148' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#94a3b8', callback: v => `${v}ms` },
+            grid: { color: '#2e3148' },
+          },
+        },
+      },
+      plugins: [{
+        // Custom plugin: draw red background for down zones
+        id: 'downZones',
+        afterDraw(chart) {
+          if (downZones.length === 0) return;
+          const { ctx: c, chartArea, scales } = chart;
+          const xScale = scales.x;
+          c.save();
+          c.fillStyle = 'rgba(239,68,68,0.12)';
+          downZones.forEach(zone => {
+            const x1 = xScale.getPixelForValue(zone.from);
+            const x2 = xScale.getPixelForValue(zone.to);
+            c.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
+          });
+          c.restore();
+        },
+      }],
+    });
+  }
+
+  // Modal close
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  }
+
+  // ── Refresh cycle ────────────────────────────────────────────────────────
+  async function refresh() {
+    await Promise.all([loadStats(), loadMonitors()]);
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Initial load
+  refresh();
+
+  // Auto-refresh every 30 seconds
+  refreshTimer = setInterval(refresh, 30000);
+</script>
+</body>
+</html>
