@@ -1,0 +1,22 @@
+{
+  "name": "monitor-avaliability-web",
+  "version": "1.0.0",
+  "description": "Production-ready uptime monitoring system — created by Agencia Redlab, developed by Juan Camilo Medina Godoy",
+  "main": "src/scheduler.js",
+  "scripts": {
+    "start": "node src/scheduler.js",
+    "dev": "node --watch src/scheduler.js"
+  },
+  "author": "Juan Camilo Medina Godoy <Agencia Redlab>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "express": "^4.18.3",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.12",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
