@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<!--
+  status.html — Public Status Page
+  MonitorAvaliabilityWeb — Uptime Monitoring System
+
+  Created by Agencia Redlab
+  Developed by Juan Camilo Medina Godoy
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Status — MonitorAvaliabilityWeb</title>
+  <style>
+    :root {
+      --bg:         #0f1117;
+      --surface:    #1a1d27;
+      --border:     #2e3148;
+      --text:       #e2e8f0;
+      --text-muted: #94a3b8;
+      --up:         #22c55e;
+      --down:       #ef4444;
+      --warn:       #f59e0b;
+      --accent:     #6366f1;
+      --radius:     10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+
+    /* ── Header ───────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .logo { font-size: 1.15rem; font-weight: 700; }
+    .logo span { color: var(--accent); }
+
+    .header-meta { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
+
+    /* ── Banner ───────────────────────────────────────────── */
+    #banner {
+      padding: 1.5rem 2rem;
+      text-align: center;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.3s;
+    }
+    #banner.operational { background: rgba(34,197,94,0.12); color: var(--up); }
+    #banner.degraded    { background: rgba(245,158,11,0.12); color: var(--warn); }
+    #banner.outage      { background: rgba(239,68,68,0.12);  color: var(--down); }
+
+    /* ── Main layout ──────────────────────────────────────── */
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    section { margin-bottom: 2.5rem; }
+
+    h2 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Last updated ─────────────────────────────────────── */
+    #last-updated {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Active incidents ─────────────────────────────────── */
+    #active-incidents-section { display: none; }
+
+    .incident-card {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-left: 4px solid var(--down);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .incident-card .inc-title {
+      font-weight: 700;
+      color: var(--down);
+      margin-bottom: 0.25rem;
+    }
+
+    .incident-card .inc-meta { font-size: 0.82rem; color: var(--text-muted); }
+
+    /* ── Monitor rows ─────────────────────────────────────── */
+    .monitor-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .monitor-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .monitor-name { font-weight: 700; font-size: 0.98rem; }
+
+    .monitor-url  { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+
+    .badge {
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.18rem 0.65rem;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge-up      { background: rgba(34,197,94,0.15);  color: var(--up); }
+    .badge-down    { background: rgba(239,68,68,0.15);  color: var(--down); }
+    .badge-unknown { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+
+    /* ── Uptime bar row ───────────────────────────────────── */
+    .uptime-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .uptime-bars {
+      display: flex;
+      gap: 2px;
+      flex: 1;
+      height: 28px;
+      align-items: flex-end;
+    }
+
+    .bar-day {
+      flex: 1;
+      min-width: 2px;
+      border-radius: 2px;
+      height: 100%;
+      cursor: default;
+      position: relative;
+      transition: opacity 0.15s;
+    }
+    .bar-day:hover { opacity: 0.75; }
+    .bar-day.bar-up      { background: var(--up); }
+    .bar-day.bar-partial { background: var(--warn); }
+    .bar-day.bar-down    { background: var(--down); }
+    .bar-day.bar-nodata  { background: #2e3148; }
+
+    /* tooltip */
+    .bar-day[title]:hover::after {
+      content: attr(title);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1d27;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      white-space: nowrap;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .uptime-pct {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 52px;
+      text-align: right;
+    }
+    .uptime-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── Incident history ─────────────────────────────────── */
+    .history-row {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .history-row:last-child { border-bottom: none; }
+
+    .hist-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+    .hist-dot.resolved { background: var(--up); }
+    .hist-dot.open     { background: var(--down); }
+
+    .hist-body { flex: 1; }
+    .hist-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.2rem; }
+    .hist-meta  { font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ── Empty / Loading ──────────────────────────────────── */
+    .empty { color: var(--text-muted); font-size: 0.9rem; padding: 0.75rem 0; }
+
+    .loading-shimmer {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface-alt, #222536) 50%, var(--surface) 75%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius);
+      height: 72px;
+      margin-bottom: 0.75rem;
+    }
+    @keyframes shimmer { to { background-position: -400% 0; } }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 2rem;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      header, main { padding: 1rem; }
+      #banner { padding: 1rem; font-size: 1rem; }
+      .uptime-bars { height: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Monitor<span>Avaliability</span>Web</div>
+  <div class="header-meta">
+    Created by <strong>Agencia Redlab</strong><br>
+    Developed by <strong>Juan Camilo Medina Godoy</strong>
+  </div>
+</header>
+
+<div id="banner" class="operational">⬤ &nbsp;Checking system status…</div>
+
+<main>
+  <div id="last-updated"></div>
+
+  <!-- Active incidents -->
+  <section id="active-incidents-section">
+    <h2>Active Incidents</h2>
+    <div id="active-incidents-list"></div>
+  </section>
+
+  <!-- Monitors -->
+  <section>
+    <h2>Services</h2>
+    <div id="monitors-list">
+      <div class="loading-shimmer"></div>
+      <div class="loading-shimmer"></div>
+      <div class="loading-shimmer"></div>
+    </div>
+  </section>
+
+  <!-- Incident history -->
+  <section>
+    <h2>Incident History — Last 7 Days</h2>
+    <div id="incident-history"></div>
+  </section>
+</main>
+
+<footer>
+  Powered by <strong>MonitorAvaliabilityWeb</strong> &mdash;
+  Created by <strong>Agencia Redlab</strong> &mdash;
+  Developed by <strong>Juan Camilo Medina Godoy</strong>
+</footer>
+
+<script>
+  'use strict';
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return '—';
+    const sec = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (sec < 60)   return `${sec}s ago`;
+    if (sec < 3600) return `${Math.floor(sec/60)}m ago`;
+    if (sec < 86400)return `${Math.floor(sec/3600)}h ago`;
+    return `${Math.floor(sec/86400)}d ago`;
+  }
+
+  function formatDuration(seconds) {
+    if (seconds == null) return '—';
+    const s = Math.round(seconds);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const parts = [];
+    if (h)   parts.push(`${h}h`);
+    if (m)   parts.push(`${m}m`);
+    if (sec || parts.length === 0) parts.push(`${sec}s`);
+    return parts.join(' ');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString([], {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  // ── Banner ────────────────────────────────────────────────────────────────
+
+  function updateBanner(overallStatus, openCount) {
+    const el = document.getElementById('banner');
+    el.className = '';
+    if (overallStatus === 'operational') {
+      el.classList.add('operational');
+      el.innerHTML = '&#9679; &nbsp;All Systems Operational';
+    } else if (openCount > 0) {
+      el.classList.add('outage');
+      el.innerHTML = `&#9679; &nbsp;${openCount} Active Incident${openCount > 1 ? 's' : ''} — Service Degraded`;
+    } else {
+      el.classList.add('degraded');
+      el.innerHTML = '&#9679; &nbsp;Partial Outage';
+    }
+  }
+
+  // ── Active incidents ──────────────────────────────────────────────────────
+
+  function renderActiveIncidents(incidents) {
+    const section = document.getElementById('active-incidents-section');
+    const list    = document.getElementById('active-incidents-list');
+
+    if (!incidents || incidents.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = incidents.map(inc => `
+      <div class="incident-card">
+        <div class="inc-title">&#128679; ${escHtml(inc.monitor_name)}</div>
+        <div class="inc-meta">Started ${relativeTime(inc.started_at)} &mdash; ${fmtDate(inc.started_at)}</div>
+      </div>
+    `).join('');
+  }
+
+  // ── Monitors ─────────────────────────────────────────────────────────────
+
+  function barClass(pct) {
+    if (pct == null)  return 'bar-nodata';
+    if (pct >= 95)    return 'bar-up';
+    if (pct >= 50)    return 'bar-partial';
+    return 'bar-down';
+  }
+
+  function buildBars(dailyData, totalDays) {
+    // Build map: dateStr -> uptime_pct
+    const map = {};
+    (dailyData || []).forEach(d => {
+      const key = new Date(d.day).toISOString().slice(0, 10);
+      map[key] = parseFloat(d.uptime_pct);
+    });
+
+    // Generate last N days
+    const days = [];
+    for (let i = totalDays - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    return days.map(dateStr => {
+      const pct   = map[dateStr];
+      const cls   = barClass(pct != null ? pct : null);
+      const label = pct != null ? `${dateStr}: ${pct}%` : `${dateStr}: no data`;
+      return `<div class="bar-day ${cls}" title="${label}"></div>`;
+    }).join('');
+  }
+
+  function renderMonitors(monitors) {
+    const list = document.getElementById('monitors-list');
+    if (!monitors || monitors.length === 0) {
+      list.innerHTML = '<p class="empty">No public monitors configured.</p>';
+      return;
+    }
+
+    list.innerHTML = monitors.map(m => {
+      const status  = m.current_status || 'unknown';
+      const badgeCls = `badge-${status}`;
+      const badgeTxt = status === 'up' ? '● UP' : status === 'down' ? '● DOWN' : '● UNKNOWN';
+      const uptime   = m.uptime_90d != null ? `${m.uptime_90d}%` : '—';
+
+      return `
+        <div class="monitor-row" id="mon-${m.id}">
+          <div class="monitor-top">
+            <span class="monitor-name">${escHtml(m.name)}</span>
+            <span class="badge ${badgeCls}">${badgeTxt}</span>
+          </div>
+          <div class="monitor-url">${escHtml(m.url)}</div>
+          <div class="uptime-row">
+            <span class="uptime-label">90d</span>
+            <div class="uptime-bars" id="bars-${m.id}">
+              ${buildBars([], 90)}
+            </div>
+            <span class="uptime-pct">${uptime}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Load uptime bars lazily
+    monitors.forEach(m => loadBars(m.id));
+  }
+
+  async function loadBars(monitorId) {
+    try {
+      const res  = await fetch(`/api/public/monitors/${monitorId}/uptime?days=90`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const el   = document.getElementById(`bars-${monitorId}`);
+      if (el) el.innerHTML = buildBars(data, 90);
+    } catch (_) { /* silent */ }
+  }
+
+  // ── Incident history ──────────────────────────────────────────────────────
+
+  function renderIncidentHistory(incidents) {
+    const el = document.getElementById('incident-history');
+    if (!incidents || incidents.length === 0) {
+      el.innerHTML = '<p class="empty">No incidents reported in the last 7 days.</p>';
+      return;
+    }
+
+    el.innerHTML = incidents.map(inc => `
+      <div class="history-row">
+        <div class="hist-dot resolved"></div>
+        <div class="hist-body">
+          <div class="hist-title">${escHtml(inc.monitor_name)}</div>
+          <div class="hist-meta">
+            ${fmtDate(inc.started_at)} &rarr; ${fmtDate(inc.resolved_at)}
+            &nbsp;&mdash;&nbsp; Duration: <strong>${formatDuration(inc.duration_seconds)}</strong>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── Main fetch & render ───────────────────────────────────────────────────
+
+  async function loadStatus() {
+    try {
+      const res  = await fetch('/api/public/status');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      updateBanner(data.overall_status, (data.open_incidents || []).length);
+      renderActiveIncidents(data.open_incidents);
+      renderMonitors(data.monitors);
+      renderIncidentHistory(data.recent_incidents);
+
+      document.getElementById('last-updated').textContent =
+        `Last updated: ${new Date().toLocaleTimeString()}  ·  Auto-refreshes every 60s`;
+    } catch (err) {
+      document.getElementById('banner').className = 'degraded';
+      document.getElementById('banner').textContent = '⚠ Unable to fetch status — retrying…';
+      document.getElementById('monitors-list').innerHTML =
+        `<p class="empty">Failed to load: ${err.message}</p>`;
+    }
+  }
+
+  // Initial load + refresh every 60s
+  loadStatus();
+  setInterval(loadStatus, 60000);
+</script>
+</body>
+</html>
