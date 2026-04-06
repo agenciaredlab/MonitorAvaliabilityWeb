@@ -1,0 +1,75 @@
+# =============================================================================
+# stack.standalone.yml — Docker Swarm deployment WITHOUT Traefik
+# MonitorAvaliabilityWeb — Uptime Monitoring System
+#
+# Use this file when:
+#   - You are running Docker Swarm but don't have Traefik installed
+#   - You want to expose the app directly on a port (no TLS termination here)
+#   - You manage TLS externally (nginx, Caddy, load balancer, etc.)
+#
+# Deploy:
+#   docker stack deploy -c stack.standalone.yml uptime-monitor
+#
+# Created by Agencia Redlab
+# Developed by Juan Camilo Medina Godoy
+# =============================================================================
+version: '3.8'
+
+services:
+
+  app:
+    image: ${REGISTRY_IMAGE:-uptime-monitor:latest}
+    environment:
+      DATABASE_URL:  ${DATABASE_URL}
+      PORT:          ${PORT:-3000}
+      SMTP_HOST:     ${SMTP_HOST:-}
+      SMTP_PORT:     ${SMTP_PORT:-587}
+      SMTP_USER:     ${SMTP_USER:-}
+      SMTP_PASS:     ${SMTP_PASS:-}
+      ALERT_EMAIL:   ${ALERT_EMAIL:-}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      REQUIRE_API_KEY: ${REQUIRE_API_KEY:-false}
+      RETENTION_CHECKS_DAYS:    ${RETENTION_CHECKS_DAYS:-90}
+      RETENTION_ALERTS_DAYS:    ${RETENTION_ALERTS_DAYS:-180}
+      RETENTION_INCIDENTS_DAYS: ${RETENTION_INCIDENTS_DAYS:-365}
+    ports:
+      - "${PORT:-3000}:3000"
+    networks:
+      - monitor-internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-monitor_db}
+      POSTGRES_USER:     ${POSTGRES_USER:-monitor_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monitor_pass}
+    volumes:
+      - monitor_postgres:/var/lib/postgresql/data
+    networks:
+      - monitor-internal
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+volumes:
+  monitor_postgres:
+
+networks:
+  monitor-internal:
+    driver: overlay
