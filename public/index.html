@@ -2,7 +2,6 @@
 <!--
   index.html — Dashboard UI
   MonitorAvaliabilityWeb — Uptime Monitoring System
-
   Created by Agencia Redlab
   Developed by Juan Camilo Medina Godoy
 -->
@@ -10,771 +9,780 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MonitorAvaliabilityWeb — Uptime Dashboard</title>
+  <title>MonitorAvaliabilityWeb — Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
-    /* ── CSS variables (theme) ─────────────────────────────────────────── */
     :root {
-      --bg:           #0f1117;
-      --surface:      #1a1d27;
-      --surface-alt:  #222536;
-      --border:       #2e3148;
-      --text:         #e2e8f0;
-      --text-muted:   #94a3b8;
-      --accent:       #6366f1;
-      --accent-hover: #818cf8;
-      --up:           #22c55e;
-      --down:         #ef4444;
-      --up-bg:        rgba(34,197,94,0.12);
-      --down-bg:      rgba(239,68,68,0.12);
-      --radius:       12px;
-      --shadow:       0 4px 24px rgba(0,0,0,0.4);
+      --bg:#0f1117;--surface:#1a1d27;--surface-alt:#222536;--border:#2e3148;
+      --text:#e2e8f0;--text-muted:#94a3b8;--accent:#6366f1;--accent-h:#818cf8;
+      --up:#22c55e;--down:#ef4444;--warn:#f59e0b;
+      --up-bg:rgba(34,197,94,.12);--down-bg:rgba(239,68,68,.12);--warn-bg:rgba(245,158,11,.12);
+      --radius:12px;--shadow:0 4px 24px rgba(0,0,0,.4);
     }
-
-    /* ── Reset & base ──────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      font-size: 15px;
-      line-height: 1.6;
-      min-height: 100vh;
+    body.light {
+      --bg:#f1f5f9;--surface:#ffffff;--surface-alt:#f8fafc;--border:#e2e8f0;
+      --text:#0f172a;--text-muted:#64748b;--shadow:0 4px 24px rgba(0,0,0,.08);
     }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { color: var(--accent-hover); }
-
-    /* ── Layout ────────────────────────────────────────────────────────── */
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    header h1 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: var(--text);
-    }
-
-    header h1 span { color: var(--accent); }
-
-    .header-meta {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-align: right;
-    }
-
-    main {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
-
-    /* ── Stats bar ─────────────────────────────────────────────────────── */
-    #stats-bar {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1rem 1.25rem;
-      text-align: center;
-    }
-
-    .stat-card .val {
-      font-size: 2rem;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 0.25rem;
-    }
-
-    .stat-card .lbl {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .stat-card.up   .val { color: var(--up); }
-    .stat-card.down .val { color: var(--down); }
-    .stat-card.avg  .val { color: var(--accent); }
-    .stat-card.total .val { color: var(--text); }
-
-    /* ── Add monitor form ──────────────────────────────────────────────── */
-    #add-form {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 2rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      align-items: flex-end;
-    }
-
-    #add-form h2 {
-      width: 100%;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.25rem;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-      flex: 1;
-      min-width: 180px;
-    }
-
-    .field label {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .field input {
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 0.9rem;
-      padding: 0.5rem 0.75rem;
-      outline: none;
-      transition: border-color 0.2s;
-      width: 100%;
-    }
-
-    .field input:focus { border-color: var(--accent); }
-
-    button {
-      background: var(--accent);
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
-      padding: 0.55rem 1.25rem;
-      transition: background 0.2s, transform 0.1s;
-      white-space: nowrap;
-    }
-
-    button:hover  { background: var(--accent-hover); }
-    button:active { transform: scale(0.97); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    #form-msg {
-      width: 100%;
-      font-size: 0.82rem;
-      min-height: 1.2em;
-    }
-
-    #form-msg.ok  { color: var(--up); }
-    #form-msg.err { color: var(--down); }
-
-    /* ── Monitor cards grid ────────────────────────────────────────────── */
-    #monitors-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.25rem;
-    }
-
-    .monitor-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      cursor: pointer;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      position: relative;
-    }
-
-    .monitor-card:hover {
-      border-color: var(--accent);
-      box-shadow: var(--shadow);
-    }
-
-    .monitor-card.status-up   { border-left: 4px solid var(--up); }
-    .monitor-card.status-down { border-left: 4px solid var(--down); }
-
-    .card-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 0.5rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .card-name {
-      font-weight: 700;
-      font-size: 1rem;
-      color: var(--text);
-      word-break: break-all;
-    }
-
-    .badge {
-      border-radius: 999px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      padding: 0.2rem 0.7rem;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .badge-up   { background: var(--up-bg);   color: var(--up); }
-    .badge-down { background: var(--down-bg); color: var(--down); }
-    .badge-unknown { background: rgba(148,163,184,0.12); color: var(--text-muted); }
-
-    .card-url {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      word-break: break-all;
-      margin-bottom: 0.75rem;
-    }
-
-    .card-meta {
-      display: flex;
-      gap: 1rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      flex-wrap: wrap;
-    }
-
-    .card-meta strong { color: var(--text); }
-
-    .card-delete {
-      position: absolute;
-      top: 0.75rem;
-      right: 0.75rem;
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.72rem;
-      padding: 0.15rem 0.5rem;
-      transition: border-color 0.2s, color 0.2s;
-    }
-
-    .card-delete:hover {
-      border-color: var(--down);
-      color: var(--down);
-      background: transparent;
-    }
-
-    /* ── Chart modal ───────────────────────────────────────────────────── */
-    #modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.65);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-
-    #modal-overlay.open { display: flex; }
-
-    #modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      max-width: 860px;
-      width: 100%;
-      padding: 1.5rem;
-      position: relative;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    #modal-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-
-    #modal-subtitle {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-bottom: 1.25rem;
-    }
-
-    #modal-close {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 1rem;
-      line-height: 1;
-      padding: 0.3rem 0.65rem;
-    }
-
-    #chart-container { position: relative; height: 320px; }
-
-    #modal-loading {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      text-align: center;
-      padding: 3rem 0;
-    }
-
-    /* ── Empty / loading states ────────────────────────────────────────── */
-    .grid-message {
-      grid-column: 1 / -1;
-      color: var(--text-muted);
-      text-align: center;
-      padding: 3rem 0;
-    }
-
-    /* ── Last updated indicator ────────────────────────────────────────── */
-    #last-updated {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-align: right;
-      margin-bottom: 0.75rem;
-    }
-
-    /* ── Footer ────────────────────────────────────────────────────────── */
-    footer {
-      border-top: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      margin-top: 3rem;
-      padding: 1rem 2rem;
-      text-align: center;
-    }
-
-    /* ── Responsive ────────────────────────────────────────────────────── */
-    @media (max-width: 600px) {
-      header { padding: 0.75rem 1rem; }
-      main   { padding: 1rem; }
-      #add-form { padding: 1rem; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6;min-height:100vh;transition:background .2s,color .2s}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{color:var(--accent-h)}
+    /* header */
+    header{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;position:sticky;top:0;z-index:50}
+    .header-left{display:flex;align-items:center;gap:1rem}
+    header h1{font-size:1.15rem;font-weight:700;letter-spacing:-.5px}
+    header h1 span{color:var(--accent)}
+    .nav-link{font-size:.82rem;color:var(--text-muted);padding:.3rem .7rem;border:1px solid var(--border);border-radius:6px;transition:border-color .2s,color .2s}
+    .nav-link:hover{border-color:var(--accent);color:var(--accent)}
+    .header-right{display:flex;align-items:center;gap:.75rem}
+    .header-meta{font-size:.7rem;color:var(--text-muted);text-align:right;line-height:1.4}
+    #theme-btn{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:.35rem .75rem;transition:border-color .2s,color .2s;white-space:nowrap}
+    #theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+    /* main */
+    main{max-width:1280px;margin:0 auto;padding:1.5rem}
+    /* stats bar */
+    #stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin-bottom:1.5rem}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;text-align:center}
+    .stat-card .val{font-size:1.75rem;font-weight:700;line-height:1;margin-bottom:.2rem}
+    .stat-card .lbl{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
+    .stat-card.s-total .val{color:var(--text)}
+    .stat-card.s-up .val{color:var(--up)}
+    .stat-card.s-down .val{color:var(--down)}
+    .stat-card.s-avg .val{color:var(--accent)}
+    .stat-card.s-inc .val{color:var(--warn)}
+    .stat-card.s-uptime .val{color:var(--up)}
+    /* tag filter */
+    #tag-bar{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;margin-bottom:1.25rem;min-height:2rem}
+    #tag-bar span{font-size:.72rem;color:var(--text-muted);margin-right:.25rem}
+    .tag-chip{background:var(--surface-alt);border:1px solid var(--border);border-radius:999px;color:var(--text-muted);cursor:pointer;font-size:.72rem;font-weight:600;padding:.2rem .7rem;transition:all .15s}
+    .tag-chip:hover,.tag-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    /* add form */
+    #add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;margin-bottom:1.5rem}
+    #add-form h2{font-size:.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.85rem}
+    .form-row{display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end}
+    .field{display:flex;flex-direction:column;gap:.25rem;flex:1;min-width:160px}
+    .field label{font-size:.75rem;color:var(--text-muted);font-weight:500}
+    .field input,.field select,.field textarea{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;padding:.45rem .7rem;outline:none;transition:border-color .2s;width:100%;font-family:inherit}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+    .field textarea{resize:vertical;min-height:60px}
+    .field select option{background:var(--surface)}
+    .adv-toggle{background:none;border:none;color:var(--accent);cursor:pointer;font-size:.8rem;padding:.2rem 0;text-align:left;width:auto;margin-top:.5rem}
+    .adv-toggle:hover{color:var(--accent-h);background:none}
+    #adv-section{display:none;margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--border)}
+    #adv-section.open{display:block}
+    .checkbox-row{display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--text-muted);cursor:pointer}
+    .checkbox-row input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+    button{background:var(--accent);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:.88rem;font-weight:600;padding:.5rem 1.1rem;transition:background .2s,transform .1s;white-space:nowrap}
+    button:hover{background:var(--accent-h)}
+    button:active{transform:scale(.97)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .btn-sec{background:var(--surface-alt);border:1px solid var(--border);color:var(--text-muted)}
+    .btn-sec:hover{border-color:var(--accent);color:var(--accent);background:var(--surface-alt)}
+    .btn-danger{background:var(--down)}
+    .btn-danger:hover{background:#dc2626}
+    #form-msg{width:100%;font-size:.8rem;min-height:1.1em;margin-top:.3rem}
+    #form-msg.ok{color:var(--up)}
+    #form-msg.err{color:var(--down)}
+    /* grid */
+    #last-updated{font-size:.72rem;color:var(--text-muted);text-align:right;margin-bottom:.6rem}
+    #monitors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
+    .monitor-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;cursor:pointer;transition:border-color .2s,box-shadow .2s;position:relative}
+    .monitor-card:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+    .monitor-card.status-up{border-left:4px solid var(--up)}
+    .monitor-card.status-down{border-left:4px solid var(--down)}
+    .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem;margin-bottom:.6rem}
+    .card-name{font-weight:700;font-size:.95rem;color:var(--text);word-break:break-word;flex:1}
+    .card-badges{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center}
+    .badge{border-radius:999px;font-size:.68rem;font-weight:700;letter-spacing:.06em;padding:.15rem .6rem;text-transform:uppercase;white-space:nowrap}
+    .badge-up{background:var(--up-bg);color:var(--up)}
+    .badge-down{background:var(--down-bg);color:var(--down)}
+    .badge-unknown{background:rgba(148,163,184,.12);color:var(--text-muted)}
+    .badge-method{background:rgba(99,102,241,.12);color:var(--accent)}
+    .badge-incident{background:var(--down-bg);color:var(--down)}
+    .badge-ssl-ok{background:var(--up-bg);color:var(--up)}
+    .badge-ssl-warn{background:var(--warn-bg);color:var(--warn)}
+    .badge-ssl-err{background:var(--down-bg);color:var(--down)}
+    .card-url{font-size:.75rem;color:var(--text-muted);word-break:break-all;margin-bottom:.6rem}
+    .card-meta{display:flex;gap:.75rem;font-size:.78rem;color:var(--text-muted);flex-wrap:wrap}
+    .card-meta strong{color:var(--text)}
+    .card-tags{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.5rem}
+    .card-tag{background:var(--surface-alt);border:1px solid var(--border);border-radius:999px;font-size:.65rem;color:var(--text-muted);padding:.1rem .5rem}
+    .card-delete{position:absolute;top:.6rem;right:.6rem;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:.68rem;padding:.1rem .45rem;transition:border-color .2s,color .2s}
+    .card-delete:hover{border-color:var(--down);color:var(--down);background:transparent}
+    .grid-message{grid-column:1/-1;color:var(--text-muted);text-align:center;padding:3rem 0}
+    /* modal */
+    #modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;align-items:center;justify-content:center;padding:1rem}
+    #modal-overlay.open{display:flex}
+    #modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);max-width:900px;width:100%;padding:1.25rem;position:relative;max-height:90vh;overflow-y:auto}
+    #modal-close{position:absolute;top:.75rem;right:.75rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.9rem;line-height:1;padding:.25rem .6rem}
+    #modal-title{font-size:1rem;font-weight:700;margin-bottom:.15rem;padding-right:2rem}
+    #modal-subtitle{font-size:.75rem;color:var(--text-muted);margin-bottom:.85rem}
+    /* tabs */
+    .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--border);margin-bottom:1rem;flex-wrap:wrap}
+    .tab-btn{background:none;border:none;border-bottom:2px solid transparent;border-radius:0;color:var(--text-muted);cursor:pointer;font-size:.82rem;font-weight:600;padding:.5rem .85rem;transition:color .2s,border-color .2s}
+    .tab-btn:hover{color:var(--text);background:none}
+    .tab-btn.active{border-bottom-color:var(--accent);color:var(--accent);background:none}
+    .tab-pane{display:none}
+    .tab-pane.active{display:block}
+    #chart-container{position:relative;height:280px}
+    .tab-loading{color:var(--text-muted);font-size:.85rem;text-align:center;padding:2rem 0}
+    /* stats table */
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1rem}
+    .stat-box{background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:.85rem;text-align:center}
+    .stat-box .v{font-size:1.5rem;font-weight:700;color:var(--accent)}
+    .stat-box .l{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-top:.2rem}
+    /* incidents/maintenance list */
+    .item-list{display:flex;flex-direction:column;gap:.5rem}
+    .item-row{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:.65rem .85rem;font-size:.82rem}
+    .item-row .ir-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.2rem}
+    .item-row .ir-title{font-weight:600;color:var(--text)}
+    .item-row .ir-meta{font-size:.72rem;color:var(--text-muted)}
+    .pill-open{background:var(--down-bg);color:var(--down);border-radius:999px;font-size:.65rem;font-weight:700;padding:.1rem .5rem}
+    .pill-closed{background:var(--up-bg);color:var(--up);border-radius:999px;font-size:.65rem;font-weight:700;padding:.1rem .5rem}
+    .pill-active{background:var(--warn-bg);color:var(--warn);border-radius:999px;font-size:.65rem;font-weight:700;padding:.1rem .5rem}
+    /* webhook list */
+    .wh-row{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:.65rem .85rem;font-size:.8rem;margin-bottom:.4rem}
+    .wh-url{color:var(--text);font-weight:600;word-break:break-all}
+    .wh-meta{color:var(--text-muted);font-size:.72rem;margin-top:.2rem}
+    /* mini form inside modal */
+    .mini-form{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.85rem;margin-top:.85rem}
+    .mini-form h4{font-size:.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.65rem}
+    /* toasts */
+    #toast-container{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.4rem;pointer-events:none}
+    .toast{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);color:var(--text);font-size:.82rem;max-width:320px;padding:.65rem 1rem;pointer-events:all;transition:opacity .3s,transform .3s;transform:translateX(0);opacity:1}
+    .toast.hide{opacity:0;transform:translateX(100%)}
+    .toast.t-ok{border-left:4px solid var(--up)}
+    .toast.t-err{border-left:4px solid var(--down)}
+    .toast.t-warn{border-left:4px solid var(--warn)}
+    /* footer */
+    footer{border-top:1px solid var(--border);color:var(--text-muted);font-size:.72rem;margin-top:2.5rem;padding:.85rem 2rem;text-align:center}
+    /* responsive */
+    @media(max-width:600px){
+      header{padding:.6rem 1rem}
+      main{padding:1rem}
+      #add-form{padding:.85rem}
+      .field{min-width:100%}
     }
   </style>
 </head>
 <body>
+<div id="toast-container"></div>
 
 <header>
-  <h1>Monitor<span>Avaliability</span>Web</h1>
-  <div class="header-meta">
-    Created by <strong>Agencia Redlab</strong><br>
-    Developed by <strong>Juan Camilo Medina Godoy</strong>
+  <div class="header-left">
+    <h1>Monitor<span>Avaliability</span>Web</h1>
+    <a href="/status" class="nav-link">📊 Status Page</a>
+  </div>
+  <div class="header-right">
+    <div class="header-meta">Created by <strong>Agencia Redlab</strong><br>Dev by <strong>Juan Camilo Medina Godoy</strong></div>
+    <button id="theme-btn">🌙 Dark</button>
   </div>
 </header>
 
 <main>
-
-  <!-- Stats bar -->
+  <!-- Stats -->
   <div id="stats-bar">
-    <div class="stat-card total">
-      <div class="val" id="stat-total">—</div>
-      <div class="lbl">Monitors</div>
-    </div>
-    <div class="stat-card up">
-      <div class="val" id="stat-up">—</div>
-      <div class="lbl">Up</div>
-    </div>
-    <div class="stat-card down">
-      <div class="val" id="stat-down">—</div>
-      <div class="lbl">Down</div>
-    </div>
-    <div class="stat-card avg">
-      <div class="val" id="stat-avg">—</div>
-      <div class="lbl">Avg Latency</div>
-    </div>
+    <div class="stat-card s-total"><div class="val" id="st-total">—</div><div class="lbl">Monitors</div></div>
+    <div class="stat-card s-up"><div class="val" id="st-up">—</div><div class="lbl">Up</div></div>
+    <div class="stat-card s-down"><div class="val" id="st-down">—</div><div class="lbl">Down</div></div>
+    <div class="stat-card s-avg"><div class="val" id="st-avg">—</div><div class="lbl">Avg Latency</div></div>
+    <div class="stat-card s-inc"><div class="val" id="st-inc">—</div><div class="lbl">Open Incidents</div></div>
+    <div class="stat-card s-uptime"><div class="val" id="st-uptime">—</div><div class="lbl">Avg Uptime</div></div>
   </div>
+
+  <!-- Tag filter -->
+  <div id="tag-bar"><span>Filter:</span></div>
 
   <!-- Add monitor form -->
   <form id="add-form" autocomplete="off">
-    <h2>Add Monitor</h2>
-    <div class="field">
-      <label for="inp-name">Name</label>
-      <input id="inp-name" type="text" placeholder="My Service" required />
+    <h2>➕ Add Monitor</h2>
+    <div class="form-row">
+      <div class="field" style="min-width:180px"><label>Name</label><input id="inp-name" type="text" placeholder="My Service" required /></div>
+      <div class="field" style="flex:2;min-width:220px"><label>URL</label><input id="inp-url" type="url" placeholder="https://example.com" required /></div>
+      <div class="field" style="min-width:90px;max-width:110px"><label>Method</label>
+        <select id="inp-method"><option>GET</option><option>POST</option><option>HEAD</option><option>PUT</option></select>
+      </div>
+      <div class="field" style="min-width:110px;max-width:130px"><label>Interval (s)</label><input id="inp-interval" type="number" min="30" max="86400" placeholder="60" /></div>
+      <button type="button" class="adv-toggle" id="adv-btn">⚙ Advanced ▾</button>
+      <button type="submit" id="btn-add">Add Monitor</button>
     </div>
-    <div class="field">
-      <label for="inp-url">URL</label>
-      <input id="inp-url" type="url" placeholder="https://example.com" required />
+    <div id="adv-section">
+      <div class="form-row">
+        <div class="field"><label>Timeout (ms)</label><input id="inp-timeout" type="number" min="1000" max="30000" placeholder="5000" /></div>
+        <div class="field"><label>Expected Status Codes</label><input id="inp-status-codes" type="text" placeholder="200-299 or 200,201,404" /></div>
+        <div class="field"><label>SLA Latency (ms)</label><input id="inp-sla" type="number" min="0" placeholder="1000" /></div>
+        <div class="field"><label>Tags (comma separated)</label><input id="inp-tags" type="text" placeholder="production, api" /></div>
+      </div>
+      <div class="form-row" style="margin-top:.65rem">
+        <div class="field"><label>Assertion Type</label>
+          <select id="inp-assert-type">
+            <option value="">None</option>
+            <option value="contains_text">Contains Text</option>
+            <option value="not_contains_text">Not Contains Text</option>
+            <option value="regex">Regex Match</option>
+            <option value="json_path">JSON Path</option>
+          </select>
+        </div>
+        <div class="field"><label>Assertion Value</label><input id="inp-assert-val" type="text" placeholder="e.g. ok or $.status==active" /></div>
+        <div class="field"><label>Request Headers (JSON)</label><input id="inp-headers" type="text" placeholder='{"X-Api-Key":"abc"}' /></div>
+        <div class="field"><label>Request Body</label><input id="inp-body" type="text" placeholder='{"key":"value"}' /></div>
+      </div>
+      <div class="form-row" style="margin-top:.65rem;gap:1.25rem">
+        <label class="checkbox-row"><input type="checkbox" id="inp-ssl" /> Monitor SSL Certificate</label>
+      </div>
     </div>
-    <button type="submit" id="btn-add">Add Monitor</button>
     <div id="form-msg"></div>
   </form>
 
-  <!-- Last updated -->
   <div id="last-updated"></div>
-
-  <!-- Monitor cards -->
-  <div id="monitors-grid">
-    <div class="grid-message">Loading monitors…</div>
-  </div>
-
+  <div id="monitors-grid"><div class="grid-message">Loading monitors…</div></div>
 </main>
 
-<!-- Chart modal -->
+<!-- Detail modal -->
 <div id="modal-overlay" role="dialog" aria-modal="true">
   <div id="modal">
     <button id="modal-close" aria-label="Close">✕</button>
-    <div id="modal-title">Monitor History</div>
+    <div id="modal-title">Monitor</div>
     <div id="modal-subtitle"></div>
-    <div id="modal-loading" style="display:none">Loading history…</div>
-    <div id="chart-container">
-      <canvas id="history-chart"></canvas>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="history">📈 History</button>
+      <button class="tab-btn" data-tab="stats">📊 SLA Stats</button>
+      <button class="tab-btn" data-tab="incidents">🚨 Incidents</button>
+      <button class="tab-btn" data-tab="maintenance">🔧 Maintenance</button>
+      <button class="tab-btn" data-tab="webhooks">🔔 Webhooks</button>
+    </div>
+    <!-- History tab -->
+    <div class="tab-pane active" id="tab-history">
+      <div class="tab-loading" id="hist-loading">Loading…</div>
+      <div id="chart-container" style="display:none"><canvas id="history-chart"></canvas></div>
+    </div>
+    <!-- Stats tab -->
+    <div class="tab-pane" id="tab-stats">
+      <div class="tab-loading" id="stats-loading">Loading…</div>
+      <div id="stats-content" style="display:none">
+        <div class="stats-grid">
+          <div class="stat-box"><div class="v" id="s-uptime">—</div><div class="l">Uptime %</div></div>
+          <div class="stat-box"><div class="v" id="s-avg">—</div><div class="l">Avg Latency</div></div>
+          <div class="stat-box"><div class="v" id="s-p95">—</div><div class="l">P95 Latency</div></div>
+          <div class="stat-box"><div class="v" id="s-mttr">—</div><div class="l">MTTR</div></div>
+          <div class="stat-box"><div class="v" id="s-mttf">—</div><div class="l">MTTF</div></div>
+          <div class="stat-box"><div class="v" id="s-total">—</div><div class="l">Total Checks</div></div>
+        </div>
+        <div id="ssl-info" style="display:none">
+          <h4 style="font-size:.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">SSL Certificate</h4>
+          <div class="item-row" id="ssl-detail"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Incidents tab -->
+    <div class="tab-pane" id="tab-incidents">
+      <div class="tab-loading" id="inc-loading">Loading…</div>
+      <div id="inc-content" style="display:none"><div class="item-list" id="inc-list"></div></div>
+    </div>
+    <!-- Maintenance tab -->
+    <div class="tab-pane" id="tab-maintenance">
+      <div class="tab-loading" id="maint-loading">Loading…</div>
+      <div id="maint-content" style="display:none">
+        <div class="item-list" id="maint-list"></div>
+        <div class="mini-form">
+          <h4>Schedule Maintenance Window</h4>
+          <div class="form-row">
+            <div class="field"><label>Start</label><input type="datetime-local" id="maint-start" /></div>
+            <div class="field"><label>End</label><input type="datetime-local" id="maint-end" /></div>
+            <div class="field"><label>Reason</label><input type="text" id="maint-reason" placeholder="Deployment" /></div>
+            <button type="button" id="btn-maint" class="btn-sec">Schedule</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Webhooks tab -->
+    <div class="tab-pane" id="tab-webhooks">
+      <div class="tab-loading" id="wh-loading">Loading…</div>
+      <div id="wh-content" style="display:none">
+        <div id="wh-list"></div>
+        <div class="mini-form">
+          <h4>Add Webhook</h4>
+          <div class="form-row">
+            <div class="field" style="flex:2"><label>URL</label><input type="url" id="wh-url" placeholder="https://hooks.example.com/…" /></div>
+            <div class="field"><label>Format</label>
+              <select id="wh-format">
+                <option value="generic">Generic JSON</option>
+                <option value="discord">Discord</option>
+                <option value="slack">Slack</option>
+                <option value="teams">Teams</option>
+              </select>
+            </div>
+            <div class="field"><label>Secret (optional)</label><input type="text" id="wh-secret" placeholder="HMAC secret" /></div>
+            <button type="button" id="btn-wh" class="btn-sec">Add</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<footer>
-  MonitorAvaliabilityWeb &mdash; Created by <strong>Agencia Redlab</strong> &mdash;
-  Developed by <strong>Juan Camilo Medina Godoy</strong>
-</footer>
+<footer>MonitorAvaliabilityWeb &mdash; Created by <strong>Agencia Redlab</strong> &mdash; Developed by <strong>Juan Camilo Medina Godoy</strong></footer>
+  <script>
+    'use strict';
 
-<script>
-  'use strict';
+    // ── Utilities ──────────────────────────────────────────────────────────
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtMs(ms) { return ms != null ? ms + 'ms' : '—'; }
+    function fmtPct(v) { return v != null ? v.toFixed(1) + '%' : '—'; }
+    function fmtDur(sec) {
+      if (sec == null) return '—';
+      if (sec < 60) return sec + 's';
+      if (sec < 3600) return Math.round(sec/60) + 'm';
+      return (sec/3600).toFixed(1) + 'h';
+    }
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }
 
-  // ── State ────────────────────────────────────────────────────────────────
-  let chartInstance = null;
-  let refreshTimer  = null;
+    // ── Theme ───────────────────────────────────────────────────────────────
+    const themeBtn = document.getElementById('theme-btn');
+    function applyTheme(light) {
+      document.body.classList.toggle('light', light);
+      themeBtn.textContent = light ? '🌙 Dark' : '☀️ Light';
+    }
+    applyTheme(localStorage.getItem('theme') === 'light');
+    themeBtn.addEventListener('click', () => {
+      const light = !document.body.classList.contains('light');
+      localStorage.setItem('theme', light ? 'light' : 'dark');
+      applyTheme(light);
+    });
 
-  // ── Utilities ────────────────────────────────────────────────────────────
-  function fmt(val, unit = '') {
-    return val != null ? `${val}${unit}` : '—';
-  }
+    // ── Toasts ──────────────────────────────────────────────────────────────
+    function toast(msg, type = 'ok') {
+      const c = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = `toast t-${type}`;
+      el.textContent = msg;
+      c.appendChild(el);
+      setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 350); }, 4000);
+    }
 
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
+    // ── State ───────────────────────────────────────────────────────────────
+    let chartInstance  = null;
+    let activeTag      = null;
+    let activeMonitorId = null;
+    let activeTab      = 'history';
+    let monitorsCache  = [];
 
-  function uptimePct(history) {
-    if (!history || history.length === 0) return null;
-    const up = history.filter(c => c.status === 'up').length;
-    return Math.round((up / history.length) * 1000) / 10; // one decimal
-  }
+    // ── Stats bar ───────────────────────────────────────────────────────────
+    async function loadStats() {
+      try {
+        const [sRes, iRes] = await Promise.all([
+          fetch('/api/stats'),
+          fetch('/api/incidents?status=open&limit=100')
+        ]);
+        if (sRes.ok) {
+          const s = await sRes.json();
+          document.getElementById('st-total').textContent  = s.total  ?? '—';
+          document.getElementById('st-up').textContent     = s.up     ?? '—';
+          document.getElementById('st-down').textContent   = s.down   ?? '—';
+          document.getElementById('st-avg').textContent    = s.avg_latency != null ? s.avg_latency + 'ms' : '—';
+          if (s.total > 0 && s.up != null) {
+            document.getElementById('st-uptime').textContent = ((s.up / s.total) * 100).toFixed(1) + '%';
+          }
+        }
+        if (iRes.ok) {
+          const inc = await iRes.json();
+          const openCount = Array.isArray(inc) ? inc.filter(i => !i.resolved_at).length : (inc.open ?? '—');
+          document.getElementById('st-inc').textContent = openCount;
+        }
+      } catch (_) {}
+    }
 
-  // ── Stats bar ────────────────────────────────────────────────────────────
-  async function loadStats() {
-    try {
-      const res = await fetch('/api/stats');
-      if (!res.ok) return;
-      const s = await res.json();
-      document.getElementById('stat-total').textContent = s.total ?? '—';
-      document.getElementById('stat-up').textContent    = s.up    ?? '—';
-      document.getElementById('stat-down').textContent  = s.down  ?? '—';
-      document.getElementById('stat-avg').textContent   =
-        s.avg_latency != null ? `${s.avg_latency}ms` : '—';
-    } catch (_) { /* silent — network issue */ }
-  }
+    // ── Tag filter ──────────────────────────────────────────────────────────
+    function buildTagBar(monitors) {
+      const bar = document.getElementById('tag-bar');
+      const allTags = new Set();
+      monitors.forEach(m => (m.tags || []).forEach(t => allTags.add(t)));
+      if (allTags.size === 0) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+      bar.innerHTML = '<span>Filter:</span>';
+      const all = document.createElement('button');
+      all.className = 'tag-chip' + (activeTag === null ? ' active' : '');
+      all.textContent = 'All';
+      all.addEventListener('click', () => { activeTag = null; buildTagBar(monitorsCache); renderCards(monitorsCache); });
+      bar.appendChild(all);
+      allTags.forEach(tag => {
+        const chip = document.createElement('button');
+        chip.className = 'tag-chip' + (activeTag === tag ? ' active' : '');
+        chip.textContent = tag;
+        chip.addEventListener('click', () => { activeTag = tag; buildTagBar(monitorsCache); renderCards(monitorsCache); });
+        bar.appendChild(chip);
+      });
+    }
 
-  // ── Monitor cards ────────────────────────────────────────────────────────
-  async function loadMonitors() {
-    const grid = document.getElementById('monitors-grid');
-    try {
-      const res = await fetch('/api/monitors');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const monitors = await res.json();
+    // ── Monitor cards ───────────────────────────────────────────────────────
+    async function loadMonitors() {
+      const grid = document.getElementById('monitors-grid');
+      try {
+        const res = await fetch('/api/monitors');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const monitors = await res.json();
+        monitorsCache = monitors;
+        document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+        buildTagBar(monitors);
+        renderCards(monitors);
+      } catch (err) {
+        grid.innerHTML = `<div class="grid-message">Failed to load monitors: ${escHtml(err.message)}</div>`;
+      }
+    }
 
-      document.getElementById('last-updated').textContent =
-        `Last updated: ${new Date().toLocaleTimeString()}`;
-
-      if (monitors.length === 0) {
-        grid.innerHTML = '<div class="grid-message">No monitors configured. Add one above.</div>';
+    function renderCards(monitors) {
+      const grid = document.getElementById('monitors-grid');
+      const filtered = activeTag ? monitors.filter(m => (m.tags || []).includes(activeTag)) : monitors;
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="grid-message">' + (monitors.length === 0 ? 'No monitors configured. Add one above.' : 'No monitors match this tag.') + '</div>';
         return;
       }
-
-      // Fetch histories in parallel to compute uptime %
-      const histories = await Promise.all(
-        monitors.map(m =>
-          fetch(`/api/monitors/${m.id}/history`)
-            .then(r => r.ok ? r.json() : [])
-            .catch(() => [])
-        )
-      );
-
       grid.innerHTML = '';
-      monitors.forEach((m, i) => {
-        const history  = histories[i] || [];
-        const pct      = uptimePct(history);
+      filtered.forEach(m => {
         const status   = m.current_status || 'unknown';
-        const card     = document.createElement('div');
+        const method   = (m.method || 'GET').toUpperCase();
+        const tags     = (m.tags || []);
+        const hasInc   = m.open_incident === true;
+        const sslStatus = m.ssl_status || null;
 
+        let sslBadge = '';
+        if (m.check_ssl) {
+          if (sslStatus === 'valid')         sslBadge = '<span class="badge badge-ssl-ok">🔒 SSL OK</span>';
+          else if (sslStatus === 'expiring_soon') sslBadge = '<span class="badge badge-ssl-warn">⚠️ SSL</span>';
+          else if (sslStatus === 'critical' || sslStatus === 'expired') sslBadge = '<span class="badge badge-ssl-err">🔴 SSL</span>';
+          else sslBadge = '<span class="badge badge-ssl-ok">🔒</span>';
+        }
+
+        const tagHtml = tags.map(t => `<span class="card-tag">${escHtml(t)}</span>`).join('');
+        const uptime  = m.uptime_7d != null ? m.uptime_7d.toFixed(1) + '%' : '—';
+
+        const card = document.createElement('div');
         card.className = `monitor-card status-${status}`;
-        card.dataset.id   = m.id;
-        card.dataset.name = m.name;
-        card.dataset.url  = m.url;
-
+        card.dataset.id = m.id;
         card.innerHTML = `
-          <button class="card-delete" data-id="${m.id}" title="Remove monitor">✕</button>
+          <button class="card-delete" data-id="${m.id}" title="Remove">✕</button>
           <div class="card-header">
             <div class="card-name">${escHtml(m.name)}</div>
-            <div class="badge badge-${status}">
-              ${status === 'up' ? '● UP' : status === 'down' ? '● DOWN' : '● UNKNOWN'}
+            <div class="card-badges">
+              <span class="badge badge-method">${escHtml(method)}</span>
+              <span class="badge badge-${status}">${status === 'up' ? '● UP' : status === 'down' ? '● DOWN' : '● ?'}</span>
+              ${hasInc ? '<span class="badge badge-incident">🚨 INCIDENT</span>' : ''}
+              ${sslBadge}
             </div>
           </div>
           <div class="card-url">${escHtml(m.url)}</div>
           <div class="card-meta">
-            <span>Latency: <strong>${fmt(m.last_latency, 'ms')}</strong></span>
-            <span>Uptime (24h): <strong>${pct !== null ? pct + '%' : '—'}</strong></span>
-            <span>Checks: <strong>${history.length}</strong></span>
+            <span>Latency: <strong>${fmtMs(m.last_latency)}</strong></span>
+            <span>Uptime 7d: <strong>${uptime}</strong></span>
+            <span>Every: <strong>${m.interval_seconds || 60}s</strong></span>
           </div>
+          ${tags.length ? `<div class="card-tags">${tagHtml}</div>` : ''}
         `;
-
-        // Click card → open chart (but not the delete button)
-        card.addEventListener('click', (e) => {
+        card.addEventListener('click', e => {
           if (e.target.classList.contains('card-delete')) return;
-          openChart(m.id, m.name, m.url);
+          openModal(m.id, m.name, m.url);
         });
-
-        // Delete button
-        card.querySelector('.card-delete').addEventListener('click', async (e) => {
+        card.querySelector('.card-delete').addEventListener('click', async e => {
           e.stopPropagation();
           if (!confirm(`Remove monitor "${m.name}"?`)) return;
           await deleteMonitor(m.id);
         });
-
         grid.appendChild(card);
       });
-    } catch (err) {
-      grid.innerHTML = `<div class="grid-message">Failed to load monitors: ${err.message}</div>`;
     }
-  }
 
-  async function deleteMonitor(id) {
-    try {
-      const res = await fetch(`/api/monitors/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        alert(body.error || 'Failed to delete monitor');
-        return;
-      }
-      await refresh();
-    } catch (err) {
-      alert(`Error: ${err.message}`);
+    async function deleteMonitor(id) {
+      try {
+        const res = await fetch(`/api/monitors/${id}`, { method: 'DELETE' });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); toast(b.error || 'Delete failed', 'err'); return; }
+        toast('Monitor removed', 'ok');
+        await refresh();
+      } catch (err) { toast('Error: ' + err.message, 'err'); }
     }
-  }
 
-  // ── Add monitor form ─────────────────────────────────────────────────────
-  document.getElementById('add-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const msgEl  = document.getElementById('form-msg');
-    const btn    = document.getElementById('btn-add');
-    const name   = document.getElementById('inp-name').value.trim();
-    const url    = document.getElementById('inp-url').value.trim();
+    // ── Add form ────────────────────────────────────────────────────────────
+    document.getElementById('adv-btn').addEventListener('click', () => {
+      const s = document.getElementById('adv-section');
+      const open = s.classList.toggle('open');
+      document.getElementById('adv-btn').textContent = open ? '⚙ Advanced ▴' : '⚙ Advanced ▾';
+    });
 
-    msgEl.textContent = '';
-    msgEl.className   = '';
-    btn.disabled      = true;
+    document.getElementById('add-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const msgEl = document.getElementById('form-msg');
+      const btn   = document.getElementById('btn-add');
+      msgEl.textContent = ''; msgEl.className = ''; btn.disabled = true;
 
-    try {
-      const res = await fetch('/api/monitors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, url }),
+      const body = {
+        name:    document.getElementById('inp-name').value.trim(),
+        url:     document.getElementById('inp-url').value.trim(),
+        method:  document.getElementById('inp-method').value,
+      };
+      const interval = parseInt(document.getElementById('inp-interval').value);
+      if (interval > 0) body.interval_seconds = interval;
+      const timeout = parseInt(document.getElementById('inp-timeout').value);
+      if (timeout > 0) body.timeout_ms = timeout;
+      const codes = document.getElementById('inp-status-codes').value.trim();
+      if (codes) body.expected_status_codes = codes;
+      const sla = parseInt(document.getElementById('inp-sla').value);
+      if (sla > 0) body.sla_latency_ms = sla;
+      const tagsRaw = document.getElementById('inp-tags').value.trim();
+      if (tagsRaw) body.tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+      const assertType = document.getElementById('inp-assert-type').value;
+      const assertVal  = document.getElementById('inp-assert-val').value.trim();
+      if (assertType) { body.assertion_type = assertType; body.assertion_value = assertVal; }
+      const headersRaw = document.getElementById('inp-headers').value.trim();
+      if (headersRaw) { try { body.request_headers = JSON.parse(headersRaw); } catch(_) {} }
+      const bodyRaw = document.getElementById('inp-body').value.trim();
+      if (bodyRaw) body.request_body = bodyRaw;
+      body.check_ssl = document.getElementById('inp-ssl').checked;
+
+      try {
+        const res = await fetch('/api/monitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) { msgEl.textContent = data.error || 'Failed'; msgEl.className = 'err'; return; }
+        msgEl.textContent = `Monitor "${data.name}" added!`; msgEl.className = 'ok';
+        e.target.reset();
+        document.getElementById('adv-section').classList.remove('open');
+        document.getElementById('adv-btn').textContent = '⚙ Advanced ▾';
+        toast('Monitor added: ' + data.name, 'ok');
+        await refresh();
+      } catch (err) { msgEl.textContent = 'Error: ' + err.message; msgEl.className = 'err'; }
+      finally { btn.disabled = false; }
+    });
+
+    // ── Modal ───────────────────────────────────────────────────────────────
+    function openModal(id, name, url) {
+      activeMonitorId = id;
+      activeTab = 'history';
+      document.getElementById('modal-title').textContent    = name;
+      document.getElementById('modal-subtitle').textContent = url;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'history'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-history'));
+      document.getElementById('modal-overlay').classList.add('open');
+      loadHistoryTab(id);
+    }
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+      activeMonitorId = null;
+    }
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-overlay')) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!activeMonitorId) return;
+        activeTab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + activeTab));
+        if (activeTab === 'history')     loadHistoryTab(activeMonitorId);
+        if (activeTab === 'stats')       loadStatsTab(activeMonitorId);
+        if (activeTab === 'incidents')   loadIncidentsTab(activeMonitorId);
+        if (activeTab === 'maintenance') loadMaintenanceTab(activeMonitorId);
+        if (activeTab === 'webhooks')    loadWebhooksTab(activeMonitorId);
       });
-      const body = await res.json();
-      if (!res.ok) {
-        msgEl.textContent = body.error || 'Failed to add monitor';
-        msgEl.className   = 'err';
-        return;
-      }
-      msgEl.textContent = `Monitor "${body.name}" added successfully!`;
-      msgEl.className   = 'ok';
-      document.getElementById('inp-name').value = '';
-      document.getElementById('inp-url').value  = '';
-      await refresh();
-    } catch (err) {
-      msgEl.textContent = `Error: ${err.message}`;
-      msgEl.className   = 'err';
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  // ── Chart modal ──────────────────────────────────────────────────────────
-  async function openChart(monitorId, name, url) {
-    const overlay    = document.getElementById('modal-overlay');
-    const titleEl    = document.getElementById('modal-title');
-    const subtitleEl = document.getElementById('modal-subtitle');
-    const loadingEl  = document.getElementById('modal-loading');
-    const chartCont  = document.getElementById('chart-container');
-
-    titleEl.textContent    = name;
-    subtitleEl.textContent = url;
-    loadingEl.style.display = 'block';
-    chartCont.style.display = 'none';
-    overlay.classList.add('open');
-
-    // Destroy previous chart
-    if (chartInstance) {
-      chartInstance.destroy();
-      chartInstance = null;
-    }
-
-    try {
-      const res = await fetch(`/api/monitors/${monitorId}/history`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const history = await res.json();
-
-      loadingEl.style.display  = 'none';
-      chartCont.style.display  = 'block';
-
-      if (history.length === 0) {
-        loadingEl.textContent    = 'No history data available yet.';
-        loadingEl.style.display  = 'block';
-        chartCont.style.display  = 'none';
-        return;
-      }
-
-      renderChart(history);
-    } catch (err) {
-      loadingEl.textContent   = `Failed to load history: ${err.message}`;
-      loadingEl.style.display = 'block';
-      chartCont.style.display = 'none';
-    }
-  }
-
-  function renderChart(history) {
-    const labels   = history.map(c => fmtDate(c.checked_at));
-    const latency  = history.map(c => c.latency_ms);
-
-    // Build annotation zones where status == 'down'
-    const downZones = [];
-    let zoneStart = null;
-    history.forEach((c, i) => {
-      if (c.status === 'down' && zoneStart === null) {
-        zoneStart = i;
-      } else if (c.status !== 'down' && zoneStart !== null) {
-        downZones.push({ from: zoneStart, to: i - 1 });
-        zoneStart = null;
-      }
     });
-    if (zoneStart !== null) downZones.push({ from: zoneStart, to: history.length - 1 });
 
-    const ctx = document.getElementById('history-chart').getContext('2d');
+    // History tab
+    async function loadHistoryTab(id) {
+      const loading = document.getElementById('hist-loading');
+      const cont    = document.getElementById('chart-container');
+      loading.style.display = 'block'; loading.textContent = 'Loading…';
+      cont.style.display = 'none';
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+      try {
+        const res = await fetch(`/api/monitors/${id}/history`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const history = await res.json();
+        if (history.length === 0) { loading.textContent = 'No history yet.'; return; }
+        loading.style.display = 'none'; cont.style.display = 'block';
+        renderChart(history);
+      } catch (err) { loading.textContent = 'Error: ' + err.message; }
+    }
 
-    chartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Latency (ms)',
-          data: latency,
-          borderColor: '#6366f1',
-          backgroundColor: 'rgba(99,102,241,0.15)',
-          borderWidth: 2,
-          pointRadius: history.length > 100 ? 0 : 3,
-          pointHoverRadius: 5,
-          fill: true,
-          tension: 0.35,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              afterLabel(ctx2) {
-                const idx = ctx2.dataIndex;
-                const s   = history[idx];
-                return `Status: ${s.status.toUpperCase()}  |  HTTP ${s.status_code ?? 'N/A'}`;
-              },
-            },
-          },
+    function renderChart(history) {
+      const labels  = history.map(c => fmtTime(c.checked_at));
+      const latency = history.map(c => c.latency_ms);
+      const downZones = []; let zs = null;
+      history.forEach((c, i) => {
+        if (c.status === 'down' && zs === null) zs = i;
+        else if (c.status !== 'down' && zs !== null) { downZones.push({ from: zs, to: i - 1 }); zs = null; }
+      });
+      if (zs !== null) downZones.push({ from: zs, to: history.length - 1 });
+      const ctx = document.getElementById('history-chart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Latency (ms)', data: latency, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.15)', borderWidth: 2, pointRadius: history.length > 100 ? 0 : 3, pointHoverRadius: 5, fill: true, tension: 0.35 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel(c) { const s = history[c.dataIndex]; return `Status: ${s.status.toUpperCase()}  |  HTTP ${s.status_code ?? 'N/A'}`; } } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(46,49,72,.5)' } },
+            y: { beginAtZero: true, ticks: { color: '#94a3b8', callback: v => v + 'ms' }, grid: { color: 'rgba(46,49,72,.5)' } }
+          }
         },
-        scales: {
-          x: {
-            ticks: {
-              color: '#94a3b8',
-              maxTicksLimit: 10,
-              maxRotation: 30,
-            },
-            grid: { color: '#2e3148' },
-          },
-          y: {
-            beginAtZero: true,
-            ticks: { color: '#94a3b8', callback: v => `${v}ms` },
-            grid: { color: '#2e3148' },
-          },
-        },
-      },
-      plugins: [{
-        // Custom plugin: draw red background for down zones
-        id: 'downZones',
-        afterDraw(chart) {
-          if (downZones.length === 0) return;
-          const { ctx: c, chartArea, scales } = chart;
-          const xScale = scales.x;
-          c.save();
-          c.fillStyle = 'rgba(239,68,68,0.12)';
-          downZones.forEach(zone => {
-            const x1 = xScale.getPixelForValue(zone.from);
-            const x2 = xScale.getPixelForValue(zone.to);
-            c.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
-          });
+        plugins: [{ id: 'dz', afterDraw(ch) {
+          if (!downZones.length) return;
+          const { ctx: c, chartArea, scales } = ch;
+          c.save(); c.fillStyle = 'rgba(239,68,68,.12)';
+          downZones.forEach(z => { const x1 = scales.x.getPixelForValue(z.from), x2 = scales.x.getPixelForValue(z.to); c.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top); });
           c.restore();
-        },
-      }],
+        }}]
+      });
+    }
+
+    // Stats tab
+    async function loadStatsTab(id) {
+      const loading = document.getElementById('stats-loading');
+      const cont    = document.getElementById('stats-content');
+      loading.style.display = 'block'; cont.style.display = 'none';
+      try {
+        const [sRes, sslRes] = await Promise.all([
+          fetch(`/api/monitors/${id}/stats?days=30`),
+          fetch(`/api/ssl?monitorId=${id}`)
+        ]);
+        if (!sRes.ok) throw new Error(`HTTP ${sRes.status}`);
+        const s = await sRes.json();
+        document.getElementById('s-uptime').textContent = fmtPct(s.uptime_pct);
+        document.getElementById('s-avg').textContent    = fmtMs(s.avg_latency);
+        document.getElementById('s-p95').textContent    = fmtMs(s.p95_latency);
+        document.getElementById('s-mttr').textContent   = fmtDur(s.mttr_seconds);
+        document.getElementById('s-mttf').textContent   = fmtDur(s.mttf_seconds);
+        document.getElementById('s-total').textContent  = s.total_checks ?? '—';
+        loading.style.display = 'none'; cont.style.display = 'block';
+        if (sslRes.ok) {
+          const ssl = await sslRes.json();
+          const cert = Array.isArray(ssl) ? ssl[0] : ssl;
+          if (cert && cert.hostname) {
+            document.getElementById('ssl-info').style.display = 'block';
+            document.getElementById('ssl-detail').innerHTML = `
+              <strong>${escHtml(cert.hostname)}</strong> &mdash; <span class="badge badge-ssl-${cert.status === 'valid' ? 'ok' : cert.status === 'expiring_soon' ? 'warn' : 'err'}">${escHtml(cert.status || '—')}</span><br>
+              <span style="font-size:.75rem;color:var(--text-muted)">Expires: ${fmtDate(cert.valid_to)} &nbsp;|&nbsp; Days left: ${cert.days_remaining ?? '—'} &nbsp;|&nbsp; Issuer: ${escHtml(cert.issuer || '—')}</span>`;
+          }
+        }
+      } catch (err) { loading.textContent = 'Error: ' + err.message; }
+    }
+
+    // Incidents tab
+    async function loadIncidentsTab(id) {
+      const loading = document.getElementById('inc-loading');
+      const cont    = document.getElementById('inc-content');
+      loading.style.display = 'block'; cont.style.display = 'none';
+      try {
+        const res = await fetch(`/api/incidents?monitorId=${id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+        const el   = document.getElementById('inc-list');
+        if (!list.length) { loading.textContent = 'No incidents recorded.'; return; }
+        el.innerHTML = list.map(i => `
+          <div class="item-row">
+            <div class="ir-head">
+              <span class="ir-title">Incident #${i.id}</span>
+              <span class="${i.resolved_at ? 'pill-closed' : 'pill-open'}">${i.resolved_at ? 'RESOLVED' : 'OPEN'}</span>
+            </div>
+            <div class="ir-meta">Started: ${fmtDate(i.started_at)} &nbsp;|&nbsp; ${i.resolved_at ? 'Resolved: ' + fmtDate(i.resolved_at) : 'Ongoing'} &nbsp;|&nbsp; Duration: ${fmtDur(i.duration_seconds)}</div>
+          </div>`).join('');
+        loading.style.display = 'none'; cont.style.display = 'block';
+      } catch (err) { loading.textContent = 'Error: ' + err.message; }
+    }
+
+    // Maintenance tab
+    async function loadMaintenanceTab(id) {
+      const loading = document.getElementById('maint-loading');
+      const cont    = document.getElementById('maint-content');
+      loading.style.display = 'block'; cont.style.display = 'none';
+      try {
+        const res = await fetch(`/api/monitors/${id}/maintenance`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+        const el   = document.getElementById('maint-list');
+        const now  = Date.now();
+        el.innerHTML = list.length ? list.map(w => {
+          const active = new Date(w.starts_at) <= now && new Date(w.ends_at) >= now;
+          return `<div class="item-row">
+            <div class="ir-head"><span class="ir-title">${escHtml(w.reason || 'Maintenance')}</span>
+            <span class="${active ? 'pill-active' : new Date(w.ends_at) < now ? 'pill-closed' : 'pill-open'}">${active ? 'ACTIVE' : new Date(w.ends_at) < now ? 'PAST' : 'UPCOMING'}</span></div>
+            <div class="ir-meta">${fmtDate(w.starts_at)} → ${fmtDate(w.ends_at)}</div></div>`;
+        }).join('') : '<div class="ir-meta" style="padding:.5rem 0">No maintenance windows.</div>';
+        loading.style.display = 'none'; cont.style.display = 'block';
+      } catch (err) { loading.textContent = 'Error: ' + err.message; }
+    }
+    document.getElementById('btn-maint').addEventListener('click', async () => {
+      if (!activeMonitorId) return;
+      const starts_at = document.getElementById('maint-start').value;
+      const ends_at   = document.getElementById('maint-end').value;
+      const reason    = document.getElementById('maint-reason').value.trim();
+      if (!starts_at || !ends_at) { toast('Start and end times required', 'warn'); return; }
+      try {
+        const res = await fetch(`/api/monitors/${activeMonitorId}/maintenance`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ starts_at, ends_at, reason }),
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); toast(b.error || 'Failed', 'err'); return; }
+        toast('Maintenance window scheduled', 'ok');
+        loadMaintenanceTab(activeMonitorId);
+      } catch (err) { toast('Error: ' + err.message, 'err'); }
     });
-  }
 
-  // Modal close
-  document.getElementById('modal-close').addEventListener('click', closeModal);
-  document.getElementById('modal-overlay').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('modal-overlay')) closeModal();
-  });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    // Webhooks tab
+    async function loadWebhooksTab(id) {
+      const loading = document.getElementById('wh-loading');
+      const cont    = document.getElementById('wh-content');
+      loading.style.display = 'block'; cont.style.display = 'none';
+      try {
+        const res = await fetch(`/api/webhooks?monitorId=${id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+        const el   = document.getElementById('wh-list');
+        el.innerHTML = list.length ? list.map(w => `
+          <div class="wh-row">
+            <div class="wh-url">${escHtml(w.url)}</div>
+            <div class="wh-meta">Format: ${escHtml(w.format || 'generic')} &nbsp;|&nbsp; Active: ${w.active ? '✅' : '❌'} &nbsp;|&nbsp; Events: ${escHtml((w.events || []).join(', ') || 'all')}</div>
+          </div>`).join('') : '<div class="ir-meta" style="padding:.5rem 0">No webhooks configured.</div>';
+        loading.style.display = 'none'; cont.style.display = 'block';
+      } catch (err) { loading.textContent = 'Error: ' + err.message; }
+    }
+    document.getElementById('btn-wh').addEventListener('click', async () => {
+      if (!activeMonitorId) return;
+      const url    = document.getElementById('wh-url').value.trim();
+      const format = document.getElementById('wh-format').value;
+      const secret = document.getElementById('wh-secret').value.trim();
+      if (!url) { toast('Webhook URL required', 'warn'); return; }
+      try {
+        const res = await fetch('/api/webhooks', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ monitor_id: activeMonitorId, url, format, secret: secret || undefined }),
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); toast(b.error || 'Failed', 'err'); return; }
+        toast('Webhook added', 'ok');
+        document.getElementById('wh-url').value = '';
+        loadWebhooksTab(activeMonitorId);
+      } catch (err) { toast('Error: ' + err.message, 'err'); }
+    });
 
-  function closeModal() {
-    document.getElementById('modal-overlay').classList.remove('open');
-    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  }
-
-  // ── Refresh cycle ────────────────────────────────────────────────────────
-  async function refresh() {
-    await Promise.all([loadStats(), loadMonitors()]);
-  }
-
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  // Initial load
-  refresh();
-
-  // Auto-refresh every 30 seconds
-  refreshTimer = setInterval(refresh, 30000);
-</script>
+    // ── Refresh cycle ───────────────────────────────────────────────────────
+    async function refresh() {
+      await Promise.all([loadStats(), loadMonitors()]);
+    }
+    refresh();
+    setInterval(refresh, 30000);
+  </script>
 </body>
 </html>
