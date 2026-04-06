@@ -166,7 +166,9 @@ function startAPI() {
           (SELECT c.checked_at FROM checks c WHERE c.monitor_id = m.id ORDER BY c.checked_at DESC LIMIT 1) AS last_checked_at,
           s.status         AS ssl_status,
           s.days_remaining AS ssl_days_remaining,
-          (SELECT COUNT(*) FROM incidents i WHERE i.monitor_id = m.id AND i.status = 'open') AS open_incidents
+          (SELECT COUNT(*) FROM incidents i WHERE i.monitor_id = m.id AND i.status = 'open') AS open_incidents,
+          (SELECT ROUND(100.0 * SUM(CASE WHEN c.status = 'up' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*),0), 1)
+           FROM checks c WHERE c.monitor_id = m.id AND c.checked_at >= NOW() - INTERVAL '7 days') AS uptime_7d
         FROM monitors m
         LEFT JOIN ssl_certificates s ON s.monitor_id = m.id
         WHERE m.active = TRUE

@@ -451,7 +451,7 @@
         const status   = m.current_status || 'unknown';
         const method   = (m.method || 'GET').toUpperCase();
         const tags     = (m.tags || []);
-        const hasInc   = m.open_incident === true;
+        const hasInc   = parseInt(m.open_incidents || 0) > 0;
         const sslStatus = m.ssl_status || null;
 
         let sslBadge = '';
@@ -656,7 +656,7 @@
       try {
         const [sRes, sslRes] = await Promise.all([
           fetch(`/api/monitors/${id}/stats?days=30`),
-          fetch(`/api/ssl?monitorId=${id}`)
+          fetch(`/api/monitors/${id}`)
         ]);
         if (!sRes.ok) throw new Error(`HTTP ${sRes.status}`);
         const s = await sRes.json();
@@ -668,9 +668,9 @@
         document.getElementById('s-total').textContent  = s.total_checks ?? '—';
         loading.style.display = 'none'; cont.style.display = 'block';
         if (sslRes.ok) {
-          const ssl = await sslRes.json();
-          const cert = Array.isArray(ssl) ? ssl[0] : ssl;
-          if (cert && cert.hostname) {
+          const mon = await sslRes.json();
+          const cert = mon.ssl_status ? { hostname: mon.url, status: mon.ssl_status, days_remaining: mon.ssl_days_remaining, valid_to: mon.ssl_valid_to, issuer: mon.ssl_issuer } : null;
+          if (cert && cert.status) {
             document.getElementById('ssl-info').style.display = 'block';
             document.getElementById('ssl-detail').innerHTML = `
               <strong>${escHtml(cert.hostname)}</strong> &mdash; <span class="badge badge-ssl-${cert.status === 'valid' ? 'ok' : cert.status === 'expiring_soon' ? 'warn' : 'err'}">${escHtml(cert.status || '—')}</span><br>
@@ -747,7 +747,7 @@
       const cont    = document.getElementById('wh-content');
       loading.style.display = 'block'; cont.style.display = 'none';
       try {
-        const res = await fetch(`/api/webhooks?monitorId=${id}`);
+        const res = await fetch(`/api/monitors/${id}/webhooks`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const list = await res.json();
         const el   = document.getElementById('wh-list');

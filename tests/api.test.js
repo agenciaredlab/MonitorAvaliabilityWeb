@@ -322,6 +322,255 @@ describe('GET /api/public/status', () => {
   });
 });
 
+// ── GET /api/monitors/:id ─────────────────────────────────────────────────────
+
+describe('GET /api/monitors/:id', () => {
+  test('returns 200 with monitor detail', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ ...monitorRow, ssl_valid_to: null, ssl_issuer: null }] });
+    const res = await request(server).get('/api/monitors/1');
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(1);
+    expect(res.body.name).toBe('Google');
+  });
+
+  test('returns 404 for unknown monitor', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(server).get('/api/monitors/999');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).get('/api/monitors/abc');
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── PATCH /api/monitors/:id ───────────────────────────────────────────────────
+
+describe('PATCH /api/monitors/:id', () => {
+  test('updates monitor fields and returns 200', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ ...monitorRow, name: 'Updated' }] });
+    const res = await request(server)
+      .patch('/api/monitors/1')
+      .send({ name: 'Updated', interval_seconds: 120 });
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('Updated');
+  });
+
+  test('returns 400 when no valid fields are provided', async () => {
+    const res = await request(server)
+      .patch('/api/monitors/1')
+      .send({ unknown_field: 'value' });
+    expect(res.status).toBe(400);
+  });
+
+  test('returns 404 when monitor not found', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(server)
+      .patch('/api/monitors/999')
+      .send({ name: 'Ghost' });
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).patch('/api/monitors/abc').send({ name: 'x' });
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── GET /api/monitors/:id/maintenance ────────────────────────────────────────
+
+describe('GET /api/monitors/:id/maintenance', () => {
+  test('returns 200 with maintenance windows array', async () => {
+    const window = { id: 1, monitor_id: 1, reason: 'Deploy', starts_at: new Date(), ends_at: new Date() };
+    pool.query.mockResolvedValueOnce({ rows: [window] });
+    const res = await request(server).get('/api/monitors/1/maintenance');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body[0].reason).toBe('Deploy');
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).get('/api/monitors/abc/maintenance');
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── DELETE /api/maintenance/:id ───────────────────────────────────────────────
+
+describe('DELETE /api/maintenance/:id', () => {
+  test('deletes maintenance window and returns 200', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1 });
+    const res = await request(server).delete('/api/maintenance/1');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  test('returns 404 when window not found', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0 });
+    const res = await request(server).delete('/api/maintenance/999');
+    expect(res.status).toBe(404);
+  });
+});
+
+// ── GET /api/monitors/:id/incidents ──────────────────────────────────────────
+
+describe('GET /api/monitors/:id/incidents', () => {
+  test('returns 200 with incidents array', async () => {
+    // uses getIncidents() from incidentManager (already mocked), not pool.query
+    const { getIncidents } = require('../src/incidentManager');
+    getIncidents.mockResolvedValueOnce([{ id: 1, monitor_id: 1, status: 'open', started_at: new Date() }]);
+    const res = await request(server).get('/api/monitors/1/incidents');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).get('/api/monitors/abc/incidents');
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── GET /api/monitors/:id/webhooks ────────────────────────────────────────────
+
+describe('GET /api/monitors/:id/webhooks', () => {
+  test('returns 200 with webhooks array', async () => {
+    const webhook = { id: 1, monitor_id: 1, url: 'https://hooks.example.com', format: 'generic', active: true };
+    pool.query.mockResolvedValueOnce({ rows: [webhook] });
+    const res = await request(server).get('/api/monitors/1/webhooks');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body[0].format).toBe('generic');
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).get('/api/monitors/abc/webhooks');
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── POST /api/monitors/:id/webhooks ──────────────────────────────────────────
+
+describe('POST /api/monitors/:id/webhooks', () => {
+  test('creates webhook and returns 201', async () => {
+    const row = { id: 5, name: 'Deploy hook', url: 'https://hooks.example.com', events: ['down'], format: 'slack', active: true };
+    pool.query.mockResolvedValueOnce({ rows: [row] });
+    const res = await request(server)
+      .post('/api/monitors/1/webhooks')
+      .send({ url: 'https://hooks.example.com', format: 'slack', events: ['down'] });
+    expect(res.status).toBe(201);
+    expect(res.body.format).toBe('slack');
+  });
+
+  test('returns 400 when url is missing', async () => {
+    const res = await request(server).post('/api/monitors/1/webhooks').send({ format: 'slack' });
+    expect(res.status).toBe(400);
+  });
+
+  test('returns 400 for invalid monitor id', async () => {
+    const res = await request(server).post('/api/monitors/abc/webhooks').send({ url: 'https://x.com' });
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── DELETE /api/webhooks/:id ──────────────────────────────────────────────────
+
+describe('DELETE /api/webhooks/:id', () => {
+  test('deletes webhook and returns 200', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1 });
+    const res = await request(server).delete('/api/webhooks/1');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  test('returns 404 when webhook not found', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0 });
+    const res = await request(server).delete('/api/webhooks/999');
+    expect(res.status).toBe(404);
+  });
+});
+
+// ── GET /api/keys ─────────────────────────────────────────────────────────────
+
+describe('GET /api/keys', () => {
+  test('returns 200 with list of API keys', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'CI Key', revoked: false, created_at: new Date() }] });
+    const res = await request(server).get('/api/keys');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body[0].name).toBe('CI Key');
+  });
+
+  test('returns 500 on DB error', async () => {
+    pool.query.mockRejectedValueOnce(new Error('DB error'));
+    const res = await request(server).get('/api/keys');
+    expect(res.status).toBe(500);
+  });
+});
+
+// ── DELETE /api/keys/:id ──────────────────────────────────────────────────────
+
+describe('DELETE /api/keys/:id', () => {
+  test('revokes key and returns 200', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1 });
+    const res = await request(server).delete('/api/keys/1');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  test('returns 404 when key not found', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0 });
+    const res = await request(server).delete('/api/keys/999');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).delete('/api/keys/abc');
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── GET /api/monitors/:id/history/export ─────────────────────────────────────
+
+describe('GET /api/monitors/:id/history/export', () => {
+  test('returns CSV file with correct headers', async () => {
+    const rows = [
+      { id: 1, status: 'up', status_code: 200, latency_ms: 100, assertion_passed: true, error_message: null, checked_at: new Date() },
+    ];
+    pool.query.mockResolvedValueOnce({ rows });
+    const res = await request(server).get('/api/monitors/1/history/export');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/csv/);
+    expect(res.headers['content-disposition']).toMatch(/attachment/);
+    expect(res.text).toMatch(/id,status,status_code/);
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const res = await request(server).get('/api/monitors/abc/history/export');
+    expect(res.status).toBe(400);
+  });
+});
+
+// ── GET /api/public/monitors/:id/uptime ──────────────────────────────────────
+
+describe('GET /api/public/monitors/:id/uptime', () => {
+  test('returns 200 with uptime bars array', async () => {
+    // endpoint makes a single query — no monitor existence check
+    const rows = [{ day: '2026-04-01', checks_count: 100, uptime_pct: '99.0' }];
+    pool.query.mockResolvedValueOnce({ rows });
+    const res = await request(server).get('/api/public/monitors/1/uptime?days=7');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('returns empty array when monitor has no checks', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(server).get('/api/public/monitors/999/uptime');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});
+
 // ── GET /api/monitors/:id/badge.svg ──────────────────────────────────────────
 
 describe('GET /api/monitors/:id/badge.svg', () => {
