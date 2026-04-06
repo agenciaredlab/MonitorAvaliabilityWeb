@@ -8,171 +8,186 @@
 
 ## Features
 
-- **Real-time HTTP monitoring** — checks every 60 seconds with configurable intervals
-- **Latency tracking** — measures and stores response time for every check
-- **Email alerts** — notifies on DOWN and RECOVERY events via SMTP
-- **Slack alerts** — posts DOWN/RECOVERY messages to a Slack webhook
-- **Live dashboard** — responsive single-page UI with Chart.js latency graphs
-- **24h history charts** — line chart with red zones highlighting downtime periods
-- **REST API** — manage monitors programmatically
-- **Soft delete** — deactivate monitors without losing historical data
-- **Docker-first** — works with `docker-compose` locally and Docker Swarm / Portainer in production
-- **Traefik v2 ready** — `stack.yml` includes full Traefik labels with Let's Encrypt TLS
+### Core monitoring
+- **HTTP/HTTPS checks** every 60 seconds (configurable per monitor)
+- **Custom HTTP methods** — GET, POST, HEAD, PUT
+- **Response body assertions** — `contains_text`, `not_contains_text`, `regex`, `json_path`
+- **Custom expected status codes** — ranges (`200-399`), exact (`200,201,204`), or mixed
+- **Per-monitor timeouts** and **custom request headers/body**
+- **SSL/TLS certificate monitoring** — alerts when cert expires in < 30 days (warning) or < 7 days (critical)
+- **SLA latency thresholds** — alert when response time exceeds your defined limit
+
+### Alerting
+- **Email alerts** via SMTP (DOWN, RECOVERY, SLA breach, SSL expiry)
+- **Slack notifications** via incoming webhooks
+- **Custom webhooks** with Discord, Slack, Teams, and generic JSON formats
+- **HMAC-SHA256 webhook signing** for secure payload verification
+- **Maintenance windows** — suppress alerts during planned downtime
+
+### Incident management
+- **Automatic incident creation** on DOWN transition
+- **Automatic incident resolution** on RECOVERY
+- **Incident notes/timeline** — add updates during an outage
+- **MTTR / MTTF metrics** — calculated from incident history
+
+### Dashboard & UI
+- **Responsive dark-theme dashboard** with real-time monitor cards
+- **SLA stats panel** — uptime %, avg latency, P95 latency, MTTR per monitor
+- **24h latency chart** (Chart.js) with red zones for downtime periods
+- **Public status page** at `/status` — 90-day uptime bars (Statuspage.io style)
+- **SVG status badges** — embed in your README or website
+- **CSV export** — download check history for any monitor
+
+### Security & operations
+- **API key authentication** — optional, SHA-256 hashed keys
+- **Data retention** — automatic cleanup of old checks/alerts/incidents (configurable)
+- **Smart network detection** — detects Traefik and existing Docker networks before deploying
+- **Safe deployment** — never breaks existing containers running on the same server
+
+### Deployment
+- **Docker Compose** for local development
+- **Docker Swarm + Traefik v2** for production with automatic HTTPS
+- **Standalone Swarm** mode for servers without Traefik
+- **Portainer compatible** — deploy via stack UI
 
 ---
 
-## File Structure
-
-```
-MonitorAvaliabilityWeb/
-├── src/
-│   ├── db.js            # PostgreSQL pool + schema init + seed
-│   ├── checker.js       # HTTP health checker
-│   ├── alertEngine.js   # Email + Slack alert engine
-│   ├── api.js           # Express REST API
-│   └── scheduler.js     # Entry point + cron scheduler
-├── public/
-│   └── index.html       # Dashboard (vanilla JS + Chart.js)
-├── .env.example         # Environment variables template
-├── .gitignore
-├── Dockerfile
-├── docker-compose.yml   # Local development
-├── stack.yml            # Docker Swarm / Portainer production
-├── package.json
-└── README.md
-```
-
----
-
-## Local Development
-
-### Prerequisites
-- Docker & Docker Compose
-
-### Steps
+## Quick Start
 
 ```bash
-# 1. Clone the repository
+# Clone
 git clone https://github.com/agenciaredlab/MonitorAvaliabilityWeb.git
 cd MonitorAvaliabilityWeb
 
-# 2. Create your environment file
+# Configure
 cp .env.example .env
-# Edit .env with your SMTP / Slack settings (optional)
 
-# 3. Start all services
+# Start
 docker-compose up --build
 
-# 4. Open the dashboard
-open http://localhost:3000
+# Open
+open http://localhost:3000         # Dashboard
+open http://localhost:3000/status  # Public status page
 ```
-
-The app will:
-1. Wait for PostgreSQL to be healthy
-2. Create tables and seed 3 example monitors
-3. Run the first check cycle immediately
-4. Schedule subsequent checks every 60 seconds
 
 ---
 
-## Production Deployment (Docker Swarm / Portainer)
+## Project Structure
 
-### 1. Build and push the image
-
-```bash
-# Set your registry image name in .env
-export REGISTRY_IMAGE=your-dockerhub-user/uptime-monitor:latest
-
-docker build -t $REGISTRY_IMAGE .
-docker push $REGISTRY_IMAGE
+```
+src/
+  scheduler.js       Entry point — init DB, start API, run crons
+  db.js              PostgreSQL schema (9 tables) + migrations
+  checker.js         HTTP health checks with body assertions
+  alertEngine.js     Email / Slack / webhook notifications
+  sslChecker.js      SSL certificate monitoring
+  incidentManager.js Incident lifecycle management
+  auth.js            API key authentication middleware
+  retention.js       Automatic data cleanup
+  networkCheck.js    Startup validator (env, port, DB connectivity)
+  api.js             Express REST API (30+ endpoints)
+public/
+  index.html         Dashboard UI (vanilla JS + Chart.js)
+  status.html        Public status page
+scripts/
+  detect-network.sh  Docker network topology detector
+  deploy.sh          Smart deployment script
+tests/               Jest test suite (96 tests, 7 files)
+docs/
+  API_REFERENCE.md   Complete API documentation
+  DEPLOYMENT.md      Production deployment guide
+  DEVELOPMENT.md     Architecture and development guide
 ```
 
-### 2. Create the external Traefik network (once per Swarm)
+---
 
-```bash
-docker network create --driver overlay traefik-public
-```
+## Documentation
 
-### 3. Set environment variables on your Swarm manager
+| Document | Description |
+|----------|-------------|
+| [API Reference](docs/API_REFERENCE.md) | All endpoints, request/response formats, assertion types |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Local dev, Swarm+Traefik, standalone, Portainer, backup |
+| [Development Guide](docs/DEVELOPMENT.md) | Architecture, data flow, DB schema, adding features |
 
-Either export them in your shell or set them in Portainer's environment section before deploying `stack.yml`.
+---
 
-### 4. Deploy the stack
+## API Endpoints Summary
 
-```bash
-# Via CLI
-docker stack deploy -c stack.yml uptime-monitor
-
-# Via Portainer
-# Upload stack.yml → set environment variables → Deploy
-```
-
-### 5. Access the dashboard
-
-Navigate to `https://<DOMAIN>` (configured via the `DOMAIN` env var).
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/monitors` | List monitors with status + SSL info |
+| `POST` | `/api/monitors` | Create monitor (with assertions, SSL, SLA) |
+| `PATCH` | `/api/monitors/:id` | Update monitor fields |
+| `DELETE` | `/api/monitors/:id` | Soft-delete monitor |
+| `GET` | `/api/monitors/:id/history` | Check history (up to 90 days) |
+| `GET` | `/api/monitors/:id/history/export` | Download history as CSV |
+| `GET` | `/api/monitors/:id/stats` | SLA metrics (uptime %, P95, MTTR) |
+| `GET` | `/api/monitors/:id/badge.svg` | SVG status badge |
+| `GET` | `/api/monitors/:id/incidents` | Incident history |
+| `GET` | `/api/monitors/:id/maintenance` | Maintenance windows |
+| `POST` | `/api/monitors/:id/maintenance` | Create maintenance window |
+| `GET` | `/api/monitors/:id/webhooks` | List webhooks |
+| `POST` | `/api/monitors/:id/webhooks` | Add webhook (Discord/Slack/Teams) |
+| `GET` | `/api/stats` | Global stats (total/up/down/avg latency) |
+| `GET` | `/api/incidents` | All open incidents |
+| `POST` | `/api/incidents/:id/notes` | Add note to incident |
+| `POST` | `/api/keys` | Generate API key |
+| `GET` | `/api/public/status` | Public status (no auth) |
 
 ---
 
 ## Environment Variables
 
-| Variable          | Description                                      | Required |
-|-------------------|--------------------------------------------------|----------|
-| `DATABASE_URL`    | PostgreSQL connection string                     | Yes      |
-| `PORT`            | HTTP server port (default: `3000`)               | No       |
-| `SMTP_HOST`       | SMTP server hostname                             | No       |
-| `SMTP_PORT`       | SMTP server port (default: `587`)                | No       |
-| `SMTP_USER`       | SMTP username / email address                    | No       |
-| `SMTP_PASS`       | SMTP password / app password                     | No       |
-| `ALERT_EMAIL`     | Destination email for alerts                     | No       |
-| `SLACK_WEBHOOK`   | Slack incoming webhook URL                       | No       |
-| `DOMAIN`          | Public domain for Traefik routing                | No       |
-| `REGISTRY_IMAGE`  | Docker image name for Swarm deployment           | No       |
-| `POSTGRES_DB`     | PostgreSQL database name (Swarm `db` service)    | No       |
-| `POSTGRES_USER`   | PostgreSQL username (Swarm `db` service)         | No       |
-| `POSTGRES_PASSWORD` | PostgreSQL password (Swarm `db` service)       | No       |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `PORT` | ❌ | HTTP port (default `3000`) |
+| `SMTP_HOST/PORT/USER/PASS` | ❌ | SMTP for email alerts |
+| `ALERT_EMAIL` | ❌ | Destination for alert emails |
+| `SLACK_WEBHOOK` | ❌ | Slack incoming webhook URL |
+| `REQUIRE_API_KEY` | ❌ | `true` to enforce API key auth |
+| `RETENTION_CHECKS_DAYS` | ❌ | Keep checks N days (default `90`) |
+| `DOMAIN` | ❌ | Domain for Traefik TLS routing |
+| `REGISTRY_IMAGE` | ❌ | Docker image for Swarm deploy |
 
-> SMTP and Slack variables are optional — alerts are simply skipped if not set.
+Full table: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#7-environment-variables-reference)
 
 ---
 
-## API Endpoints
+## Production Deployment
 
-| Method   | Endpoint                        | Description                                       |
-|----------|---------------------------------|---------------------------------------------------|
-| `GET`    | `/api/monitors`                 | List all active monitors with current status      |
-| `GET`    | `/api/monitors/:id/history`     | Last 24h checks for a monitor (ordered ASC)       |
-| `GET`    | `/api/stats`                    | Aggregate stats: total, up, down, avg latency     |
-| `POST`   | `/api/monitors`                 | Add a new monitor `{ name, url }`                 |
-| `DELETE` | `/api/monitors/:id`             | Soft-delete (deactivate) a monitor                |
-
-### Example requests
-
+### Detect your network topology first
 ```bash
-# List monitors
-curl http://localhost:3000/api/monitors
-
-# Add a monitor
-curl -X POST http://localhost:3000/api/monitors \
-  -H "Content-Type: application/json" \
-  -d '{"name":"My API","url":"https://api.example.com/health"}'
-
-# Get 24h history
-curl http://localhost:3000/api/monitors/1/history
-
-# Global stats
-curl http://localhost:3000/api/stats
-
-# Delete a monitor
-curl -X DELETE http://localhost:3000/api/monitors/1
+./scripts/detect-network.sh
 ```
 
+### Smart auto-deploy
+```bash
+./scripts/deploy.sh          # interactive
+./scripts/deploy.sh --yes    # CI/CD mode
+./scripts/deploy.sh --dry-run  # preview
+```
+
+### Manual Swarm + Traefik
+```bash
+docker stack deploy -c stack.yml uptime-monitor
+```
+
+### Manual Swarm without Traefik
+```bash
+docker stack deploy -c stack.standalone.yml uptime-monitor
+```
+
+Full guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
 ---
 
-## Screenshots
+## Tests
 
-> _Dashboard screenshot placeholder_
->
-> ![Dashboard](https://via.placeholder.com/860x480/1a1d27/6366f1?text=MonitorAvaliabilityWeb+Dashboard)
+```bash
+npm test                # 96 tests across 7 files
+npm run test:coverage   # with coverage report
+```
 
 ---
 
