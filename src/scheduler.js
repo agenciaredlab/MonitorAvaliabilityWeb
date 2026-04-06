@@ -1,5 +1,5 @@
 /**
- * scheduler.js — Main entry point: initializes DB, starts API, runs cron checks
+ * scheduler.js — Main entry point: DB init, API server, cron checks + SSL + retention
  * MonitorAvaliabilityWeb — Uptime Monitoring System
  *
  * Created by Agencia Redlab
@@ -8,66 +8,116 @@
 
 'use strict';
 
-// Load env vars from .env file when running locally (no-op if already set)
-try { require('dotenv').config(); } catch (_) { /* dotenv optional */ }
+try { require('dotenv').config(); } catch (_) { /* dotenv is optional */ }
 
 const cron = require('node-cron');
-const { initDB } = require('./db');
-const { checkAll } = require('./checker');
-const { processResults } = require('./alertEngine');
-const { startAPI } = require('./api');
+const { initDB }          = require('./db');
+const { checkAll }        = require('./checker');
+const { checkAllSSL }     = require('./sslChecker');
+const { processResults, processSSLResults } = require('./alertEngine');
+const { runRetention }    = require('./retention');
+const { startAPI }        = require('./api');
 
-function ts() {
-  return new Date().toISOString();
-}
+function ts() { return new Date().toISOString(); }
+
+// ── Check cycle ───────────────────────────────────────────────────────────────
 
 async function runChecks() {
-  console.log(`[${ts()}] [SCHEDULER] Starting check cycle...`);
+  console.log(`[${ts()}] [SCHEDULER] ── Check cycle start ──────────────────────────`);
   try {
     const results = await checkAll();
 
+    if (results.length === 0) {
+      console.log(`[${ts()}] [SCHEDULER] No monitors due for checking.`);
+      return;
+    }
+
     for (const r of results) {
-      const statusLabel = r.status === 'up' ? 'UP  ' : 'DOWN';
+      const icon   = r.status === 'up' ? '✓' : '✗';
+      const status = r.status === 'up' ? 'UP  ' : 'DOWN';
+      const assert = r.assertionPassed === false ? ' [ASSERT FAIL]' : '';
       console.log(
-        `[${ts()}] [SCHEDULER] [${statusLabel}] ${r.monitor.name.padEnd(30)} ` +
-        `| ${String(r.latency).padStart(6)}ms | HTTP ${r.statusCode ?? 'ERR'} | ${r.monitor.url}`
+        `[${ts()}] [SCHEDULER] ${icon} [${status}] ${r.monitor.name.padEnd(28)} ` +
+        `| ${String(r.latency).padStart(6)}ms | HTTP ${String(r.statusCode ?? 'ERR').padEnd(3)}${assert}`
       );
     }
 
     await processResults(results);
-    console.log(`[${ts()}] [SCHEDULER] Check cycle complete. Checked ${results.length} monitor(s).`);
+    console.log(`[${ts()}] [SCHEDULER] ── Check cycle end (${results.length} monitors) ──────────`);
   } catch (err) {
     console.error(`[${ts()}] [SCHEDULER] Error during check cycle: ${err.message}`);
   }
 }
 
-async function main() {
-  console.log(`[${ts()}] [SCHEDULER] MonitorAvaliabilityWeb starting up...`);
-  console.log(`[${ts()}] [SCHEDULER] Created by Agencia Redlab | Developed by Juan Camilo Medina Godoy`);
+// ── SSL check cycle ───────────────────────────────────────────────────────────
 
+async function runSSLChecks() {
+  console.log(`[${ts()}] [SCHEDULER] ── SSL check cycle start ─────────────────────`);
+  try {
+    const results = await checkAllSSL();
+    if (results.length > 0) await processSSLResults(results);
+    console.log(`[${ts()}] [SCHEDULER] ── SSL check cycle end (${results.length} monitors) ──────`);
+  } catch (err) {
+    console.error(`[${ts()}] [SCHEDULER] SSL check error: ${err.message}`);
+  }
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+async function main() {
+  console.log(`[${ts()}] [SCHEDULER] ╔══════════════════════════════════════════════╗`);
+  console.log(`[${ts()}] [SCHEDULER] ║  MonitorAvaliabilityWeb — Starting Up       ║`);
+  console.log(`[${ts()}] [SCHEDULER] ║  Created by Agencia Redlab                  ║`);
+  console.log(`[${ts()}] [SCHEDULER] ║  Developed by Juan Camilo Medina Godoy      ║`);
+  console.log(`[${ts()}] [SCHEDULER] ╚══════════════════════════════════════════════╝`);
+
+  // Initialize database
   try {
     await initDB();
   } catch (err) {
-    console.error(`[${ts()}] [SCHEDULER] Fatal: database initialization failed: ${err.message}`);
+    console.error(`[${ts()}] [SCHEDULER] Fatal: DB init failed: ${err.message}`);
     process.exit(1);
   }
 
+  // Start HTTP API server
   startAPI();
 
-  // Run an immediate check on startup
+  // Immediate first run
   await runChecks();
+  await runSSLChecks();
 
-  // Schedule checks every 60 seconds
+  // ── Cron jobs ──────────────────────────────────────────────────────────────
+
+  // HTTP checks: every minute (per-monitor intervals handled by next_check_at)
   cron.schedule('* * * * *', async () => {
     await runChecks();
   });
+  console.log(`[${ts()}] [SCHEDULER] HTTP check cron: every 60 seconds`);
 
-  console.log(`[${ts()}] [SCHEDULER] Cron job scheduled: every 60 seconds.`);
+  // SSL checks: every 6 hours
+  cron.schedule('0 */6 * * *', async () => {
+    await runSSLChecks();
+  });
+  console.log(`[${ts()}] [SCHEDULER] SSL check cron: every 6 hours`);
+
+  // Data retention: daily at 03:00
+  cron.schedule('0 3 * * *', async () => {
+    console.log(`[${ts()}] [SCHEDULER] ── Data retention run ──────────────────────`);
+    try {
+      const summary = await runRetention();
+      console.log(
+        `[${ts()}] [SCHEDULER] Retention complete: ` +
+        `${summary.checks} checks, ${summary.alerts} alerts, ${summary.incidents} incidents removed`
+      );
+    } catch (err) {
+      console.error(`[${ts()}] [SCHEDULER] Retention error: ${err.message}`);
+    }
+  });
+  console.log(`[${ts()}] [SCHEDULER] Retention cron: daily at 03:00`);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Global error handlers to prevent silent crashes in production
-// ────────────────────────────────────────────────────────────────────────────
+// ── Global error handlers ─────────────────────────────────────────────────────
+
 process.on('uncaughtException', (err) => {
   console.error(`[${ts()}] [SCHEDULER] Uncaught exception: ${err.message}`);
   console.error(err.stack);
@@ -75,17 +125,17 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error(`[${ts()}] [SCHEDULER] Unhandled promise rejection:`, reason);
+  console.error(`[${ts()}] [SCHEDULER] Unhandled rejection:`, reason);
   process.exit(1);
 });
 
 process.on('SIGTERM', () => {
-  console.log(`[${ts()}] [SCHEDULER] SIGTERM received — shutting down gracefully.`);
+  console.log(`[${ts()}] [SCHEDULER] SIGTERM — shutting down gracefully.`);
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log(`[${ts()}] [SCHEDULER] SIGINT received — shutting down gracefully.`);
+  console.log(`[${ts()}] [SCHEDULER] SIGINT — shutting down gracefully.`);
   process.exit(0);
 });
 
