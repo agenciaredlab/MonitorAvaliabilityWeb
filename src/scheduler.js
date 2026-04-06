@@ -11,12 +11,13 @@
 try { require('dotenv').config(); } catch (_) { /* dotenv is optional */ }
 
 const cron = require('node-cron');
-const { initDB }          = require('./db');
-const { checkAll }        = require('./checker');
-const { checkAllSSL }     = require('./sslChecker');
+const { initDB }             = require('./db');
+const { checkAll }           = require('./checker');
+const { checkAllSSL }        = require('./sslChecker');
 const { processResults, processSSLResults } = require('./alertEngine');
-const { runRetention }    = require('./retention');
-const { startAPI }        = require('./api');
+const { runRetention }       = require('./retention');
+const { startAPI }           = require('./api');
+const { runStartupChecks }   = require('./networkCheck');
 
 function ts() { return new Date().toISOString(); }
 
@@ -71,11 +72,18 @@ async function main() {
   console.log(`[${ts()}] [SCHEDULER] ║  Developed by Juan Camilo Medina Godoy      ║`);
   console.log(`[${ts()}] [SCHEDULER] ╚══════════════════════════════════════════════╝`);
 
-  // Initialize database
+  // Run startup checks (env, port, DB connectivity with retries + clear error messages)
+  const { ok, errors } = await runStartupChecks();
+  if (!ok) {
+    console.error(`[${ts()}] [SCHEDULER] Startup checks failed — fix the errors above and restart.`);
+    process.exit(1);
+  }
+
+  // Initialize database schema
   try {
     await initDB();
   } catch (err) {
-    console.error(`[${ts()}] [SCHEDULER] Fatal: DB init failed: ${err.message}`);
+    console.error(`[${ts()}] [SCHEDULER] Fatal: DB schema init failed: ${err.message}`);
     process.exit(1);
   }
 
