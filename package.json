@@ -5,7 +5,10 @@
   "main": "src/scheduler.js",
   "scripts": {
     "start": "node src/scheduler.js",
-    "dev": "node --watch src/scheduler.js"
+    "dev": "node --watch src/scheduler.js",
+    "test": "jest --forceExit",
+    "test:coverage": "jest --coverage --forceExit",
+    "test:watch": "jest --watch"
   },
   "author": "Juan Camilo Medina Godoy <Agencia Redlab>",
   "license": "MIT",
@@ -15,6 +18,25 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.12",
     "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "text",
+      "lcov"
+    ],
+    "testTimeout": 15000
   },
   "engines": {
     "node": ">=20.0.0"
