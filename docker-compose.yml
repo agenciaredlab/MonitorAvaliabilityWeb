@@ -11,15 +11,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       monitor_db
-      POSTGRES_USER:     monitor_user
-      POSTGRES_PASSWORD: monitor_pass
+      POSTGRES_DB:       ${POSTGRES_DB:-monitor_db}
+      POSTGRES_USER:     ${POSTGRES_USER:-monitor_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monitor_pass}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - monitor-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U monitor_user -d monitor_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-monitor_user} -d ${POSTGRES_DB:-monitor_db}"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -17,7 +17,11 @@ services:
       SMTP_USER:    ${SMTP_USER:-}
       SMTP_PASS:    ${SMTP_PASS:-}
       ALERT_EMAIL:  ${ALERT_EMAIL:-}
-      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      SLACK_WEBHOOK:  ${SLACK_WEBHOOK:-}
+      REQUIRE_API_KEY: ${REQUIRE_API_KEY:-false}
+      RETENTION_CHECKS_DAYS:   ${RETENTION_CHECKS_DAYS:-90}
+      RETENTION_ALERTS_DAYS:   ${RETENTION_ALERTS_DAYS:-180}
+      RETENTION_INCIDENTS_DAYS: ${RETENTION_INCIDENTS_DAYS:-365}
     networks:
       - traefik-public
       - monitor-internal

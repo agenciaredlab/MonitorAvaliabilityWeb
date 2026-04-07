@@ -54,21 +54,51 @@
 
 ## Quick Start
 
+### One-line installer (recommended for production)
+
 ```bash
-# Clone
+curl -sSL https://raw.githubusercontent.com/agenciaredlab/MonitorAvaliabilityWeb/main/scripts/install.sh | bash
+```
+
+Automatically detects your Docker environment and deploys using the right strategy:
+
+| Environment detected | Strategy |
+|---|---|
+| Docker Swarm + `traefik-public` network | `stack.yml` — TLS via Let's Encrypt |
+| Docker Swarm without Traefik | `stack.standalone.yml` — direct port |
+| Docker Compose + Traefik running | Generates `docker-compose.override.yml` with labels |
+| Docker Compose only | `docker-compose.yml` — direct port |
+
+### Local development
+
+```bash
 git clone https://github.com/agenciaredlab/MonitorAvaliabilityWeb.git
 cd MonitorAvaliabilityWeb
-
-# Configure
 cp .env.example .env
-
-# Start
-docker-compose up --build
-
-# Open
-open http://localhost:3000         # Dashboard
-open http://localhost:3000/status  # Public status page
+docker compose up --build
+# Dashboard → http://localhost:3000
+# Status page → http://localhost:3000/status
 ```
+
+---
+
+## CI/CD — GitHub Actions
+
+Every push to `main` automatically builds and pushes the Docker image to Docker Hub.
+
+**Setup (one time):** Go to your GitHub repo → Settings → Secrets → Actions:
+
+| Secret | Value |
+|---|---|
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub access token (not your password) |
+
+The workflow (`.github/workflows/docker-publish.yml`):
+1. Runs 125 tests — build is blocked if any fail
+2. Builds multi-arch image (`amd64` + `arm64`)
+3. Publishes `docker.io/<username>/uptime-monitor:latest`
+
+In Portainer, set `REGISTRY_IMAGE=yourusername/uptime-monitor:latest` and the stack always uses the latest published image.
 
 ---
 
